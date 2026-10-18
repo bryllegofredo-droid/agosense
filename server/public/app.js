@@ -311,7 +311,33 @@ function renderHeroCard() {
 
 function renderSensorCards() {
   const record = getActiveRecord();
-  if (!record) return;
+  if (!record) {
+    // Reset to standby state
+    elements.valPh.textContent = "--";
+    elements.qPhVal.textContent = "Q: --";
+    elements.badgePhStatus.textContent = "STANDBY";
+    elements.badgePhStatus.className = "status-pill";
+    elements.barPh.style.width = "0%";
+
+    elements.valTemp.textContent = "--";
+    elements.qTempVal.textContent = "Q: --";
+    elements.badgeTempStatus.textContent = "STANDBY";
+    elements.badgeTempStatus.className = "status-pill";
+    elements.barTemp.style.width = "0%";
+
+    elements.valTurb.textContent = "--";
+    elements.qTurbVal.textContent = "Q: --";
+    elements.badgeTurbStatus.textContent = "STANDBY";
+    elements.badgeTurbStatus.className = "status-pill";
+    elements.barTurb.style.width = "0%";
+
+    elements.valTds.textContent = "--";
+    elements.qTdsVal.textContent = "Q: --";
+    elements.badgeTdsStatus.textContent = "STANDBY";
+    elements.badgeTdsStatus.className = "status-pill";
+    elements.barTds.style.width = "0%";
+    return;
+  }
 
   // 1. pH
   elements.valPh.textContent = record.ph.toFixed(2);
@@ -356,6 +382,23 @@ function renderFeedTable() {
 
   elements.feedCounter.textContent = `${filtered.length} packets logged`;
   elements.telemetryFeedBody.innerHTML = "";
+
+  if (filtered.length === 0) {
+    const emptyMsg = state.feedFilter === 'real'
+      ? "No authentic LoRa hardware packets received yet. Field node is offline / awaiting first transmission."
+      : state.feedFilter === 'simulated'
+        ? "No simulated packets in database."
+        : "Database is completely empty. Hardware standby awaiting field telemetry.";
+
+    elements.telemetryFeedBody.innerHTML = `
+      <tr>
+        <td colspan="11" style="text-align: center; color: var(--text-muted); padding: 2.5rem 1rem; font-size: 0.85rem;">
+          ${emptyMsg}
+        </td>
+      </tr>
+    `;
+    return;
+  }
 
   filtered.slice(0, 15).forEach(r => {
     const tr = document.createElement('tr');
@@ -516,8 +559,13 @@ function updateBreakdownChart() {
   const record = getActiveRecord();
   
   if (!record || !record.contributionPercentages) {
-    breakdownChartInstance.data.datasets[0].data = [25, 25, 25, 25];
+    breakdownChartInstance.data.datasets[0].data = [0, 0, 0, 0];
     breakdownChartInstance.update();
+    elements.breakdownLegend.innerHTML = `
+      <div style="padding: 2rem 1rem; text-align: center; color: var(--text-muted); font-size: 0.82rem; line-height: 1.5;">
+        Awaiting telemetry transmission to compute mathematical parameter weights ($Q_i \\times W_i$).
+      </div>
+    `;
     return;
   }
 

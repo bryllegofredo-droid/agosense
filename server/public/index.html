@@ -14,7 +14,7 @@
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   
-  <link rel="stylesheet" href="style.css?v=4.0">
+  <link rel="stylesheet" href="style.css?v=4.1">
 </head>
 <body>
   <!-- Ambient Space Background & Glowing Atmospheric Grid -->
@@ -157,7 +157,7 @@
           <div class="glass-card param-card" id="cardPh">
             <div class="card-top-row">
               <span class="card-label">HYDROGEN-ION (pH)</span>
-              <span class="status-pill status-pass" id="badgePhStatus">NORMAL</span>
+              <span class="status-pill" id="badgePhStatus">STANDBY</span>
             </div>
             <div class="param-value-row">
               <span class="param-number" id="valPh">--</span>
@@ -168,7 +168,7 @@
               <span class="meta-rating" id="qPhVal">Q: --</span>
             </div>
             <div class="mini-progress-track">
-              <div class="mini-progress-fill" id="barPh" style="width: 50%;"></div>
+              <div class="mini-progress-fill" id="barPh" style="width: 0%;"></div>
             </div>
           </div>
 
@@ -176,7 +176,7 @@
           <div class="glass-card param-card" id="cardTemp">
             <div class="card-top-row">
               <span class="card-label">WATER TEMPERATURE</span>
-              <span class="status-pill status-pass" id="badgeTempStatus">NORMAL</span>
+              <span class="status-pill" id="badgeTempStatus">STANDBY</span>
             </div>
             <div class="param-value-row">
               <span class="param-number" id="valTemp">--</span>
@@ -187,7 +187,7 @@
               <span class="meta-rating" id="qTempVal">Q: --</span>
             </div>
             <div class="mini-progress-track">
-              <div class="mini-progress-fill" id="barTemp" style="width: 55%;"></div>
+              <div class="mini-progress-fill" id="barTemp" style="width: 0%;"></div>
             </div>
           </div>
 
@@ -195,7 +195,7 @@
           <div class="glass-card param-card" id="cardTurb">
             <div class="card-top-row">
               <span class="card-label">TURBIDITY</span>
-              <span class="status-pill status-pass" id="badgeTurbStatus">NORMAL</span>
+              <span class="status-pill" id="badgeTurbStatus">STANDBY</span>
             </div>
             <div class="param-value-row">
               <span class="param-number" id="valTurb">--</span>
@@ -206,7 +206,7 @@
               <span class="meta-rating" id="qTurbVal">Q: --</span>
             </div>
             <div class="mini-progress-track">
-              <div class="mini-progress-fill" id="barTurb" style="width: 40%;"></div>
+              <div class="mini-progress-fill" id="barTurb" style="width: 0%;"></div>
             </div>
           </div>
 
@@ -214,7 +214,7 @@
           <div class="glass-card param-card" id="cardTds">
             <div class="card-top-row">
               <span class="card-label">TOTAL DISSOLVED SOLIDS</span>
-              <span class="status-pill status-pass" id="badgeTdsStatus">NORMAL</span>
+              <span class="status-pill" id="badgeTdsStatus">STANDBY</span>
             </div>
             <div class="param-value-row">
               <span class="param-number" id="valTds">--</span>
@@ -225,7 +225,7 @@
               <span class="meta-rating" id="qTdsVal">Q: --</span>
             </div>
             <div class="mini-progress-track">
-              <div class="mini-progress-fill" id="barTds" style="width: 30%;"></div>
+              <div class="mini-progress-fill" id="barTds" style="width: 0%;"></div>
             </div>
           </div>
         </div>
@@ -321,6 +321,6 @@
     </footer>
   </div>
 
-  <script src="app.js?v=4.0"></script>
+  <script src="app.js?v=4.1"></script>
 </body>
 </html>
