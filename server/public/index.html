@@ -27,12 +27,12 @@
       <div class="nav-left">
         <span class="brand-wordmark">AGOSENSE</span>
         <span class="brand-divider">/</span>
-        <span class="brand-meta">Balutakay River Transect</span>
+        <span class="brand-meta">Portable Field Station #1</span>
       </div>
 
       <nav class="nav-center">
         <div class="site-nav-pill" id="siteTabs" role="tablist">
-          <button class="site-pill-btn active" data-site="ALL" id="tabAll" role="tab" aria-selected="true">All Stations</button>
+          <button class="site-pill-btn active" data-site="ALL" id="tabAll" role="tab" aria-selected="true">All Surveys</button>
           <button class="site-pill-btn" data-site="UPSTREAM" id="tabUpstream" role="tab" aria-selected="false">Upstream</button>
           <button class="site-pill-btn" data-site="MIDSTREAM" id="tabMidstream" role="tab" aria-selected="false">Midstream</button>
           <button class="site-pill-btn" data-site="DOWNSTREAM" id="tabDownstream" role="tab" aria-selected="false">Downstream</button>
@@ -52,11 +52,11 @@
     <!-- Hero Header Section -->
     <section class="hero-section">
       <div class="hero-badge-wrapper">
-        <span class="hero-badge">DENR DAO 2016-08 • Mathematical WAWQI Framework</span>
+        <span class="hero-badge">DENR DAO 2016-08 • Mathematical WAWQI Framework • Sequential Sampling Protocol</span>
       </div>
       <h1 class="hero-title">Precision River Telemetry.<br>Automated Water Classification.</h1>
       <p class="hero-subtitle">
-        Continuous multi-parameter data collection via long-range LoRa RF telemetry, computing real-time Weighted Arithmetic Water Quality sub-indices and water safety ratings.
+        Portable multi-parameter IoT field station transmitting real-time sensor telemetry via long-range Semtech SX1276 LoRa RF, computing mathematical WAWQI sub-indices across Balutakay River sampling transects.
       </p>
     </section>
 
@@ -79,6 +79,44 @@
           <div class="console-stat-item">
             <span class="console-stat-label">FRAMEWORK</span>
             <span class="console-stat-value">Class C Standard</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Portable Field Node Hardware Telemetry Widget -->
+      <div class="node-status-strip">
+        <div class="node-meta-group">
+          <div class="node-tag">
+            <span class="node-pulse-dot"></span>
+            <span class="node-title">PROTOTYPE NODE #1</span>
+            <span class="node-arch-badge">ESP32 • SX1276 LoRa</span>
+          </div>
+          <div class="deployment-indicator">
+            <span class="strip-label">ACTIVE CAMPAIGN:</span>
+            <span class="current-site-badge" id="activeSiteBadge">DETECTING...</span>
+          </div>
+        </div>
+
+        <div class="node-telemetry-metrics">
+          <div class="telemetry-pill">
+            <span class="pill-label">BATTERY</span>
+            <span class="pill-value text-emerald" id="nodeBatteryVal">-- V</span>
+            <span class="pill-sub" id="nodeBatteryPct">(--%)</span>
+          </div>
+          <div class="telemetry-pill">
+            <span class="pill-label">RF LINK</span>
+            <span class="pill-value" id="nodeRssiVal">-- dBm</span>
+            <span class="pill-sub" id="nodeSnrVal">SNR: -- dB</span>
+          </div>
+          <div class="telemetry-pill">
+            <span class="pill-label">PDR</span>
+            <span class="pill-value text-cyan" id="nodePdrVal">--%</span>
+            <span class="pill-sub" id="nodeLossVal">0 lost</span>
+          </div>
+          <div class="telemetry-pill">
+            <span class="pill-label">INGEST RATE</span>
+            <span class="pill-value">15s Interval</span>
+            <span class="pill-sub">915MHz</span>
           </div>
         </div>
       </div>
@@ -237,22 +275,24 @@
         </div>
 
         <!-- Spatial Transect Comparison Table -->
+        <!-- Spatial Transect Comparison Table -->
         <div class="glass-card table-panel">
           <div class="table-header-row">
             <div>
-              <span class="card-label">RIVER TRANSECT STATIONS</span>
-              <h2 class="chart-title">Synchronous Station Monitoring</h2>
+              <span class="card-label">SEQUENTIAL RIVER TRANSECTS</span>
+              <h2 class="chart-title">Transect Campaigns & Historical Baseline</h2>
             </div>
-            <span class="table-badge">3 River Sites Monitored</span>
+            <span class="table-badge">Sequential Sampling Protocol</span>
           </div>
 
           <div class="table-wrapper">
             <table class="minimal-table" id="sitesTable">
               <thead>
                 <tr>
-                  <th>STATION</th>
-                  <th>NODE</th>
-                  <th>TIMESTAMP</th>
+                  <th>TRANSECT SITE</th>
+                  <th>ENVIRONMENTAL ROLE</th>
+                  <th>CAMPAIGN STATUS</th>
+                  <th>LAST SURVEYED</th>
                   <th>pH</th>
                   <th>TEMPERATURE</th>
                   <th>TURBIDITY</th>
@@ -274,7 +314,7 @@
           <div class="table-header-row">
             <div>
               <span class="card-label">INGESTION STREAM</span>
-              <h2 class="chart-title">Live LoRa Telemetry Packets</h2>
+              <h2 class="chart-title">Live LoRa Telemetry Packets (Node #1)</h2>
             </div>
             <span class="stream-counter" id="feedCounter">0 packets logged</span>
           </div>
@@ -284,7 +324,7 @@
               <thead>
                 <tr>
                   <th>TIMESTAMP</th>
-                  <th>STATION</th>
+                  <th>TRANSECT</th>
                   <th>PACKET SEQ</th>
                   <th>pH</th>
                   <th>TEMP (°C)</th>
@@ -292,6 +332,7 @@
                   <th>TDS (ppm)</th>
                   <th>WAWQI</th>
                   <th>RATING</th>
+                  <th>BATTERY</th>
                   <th>RSSI / SNR</th>
                 </tr>
               </thead>

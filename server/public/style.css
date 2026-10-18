@@ -378,6 +378,182 @@ body {
   color: var(--emerald);
 }
 
+/* ==========================================
+   PORTABLE NODE HARDWARE TELEMETRY WIDGET
+   ========================================== */
+.node-status-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.75rem;
+  background: rgba(14, 20, 34, 0.6);
+  border-bottom: 1px solid var(--border-subtle);
+  border-top: 1px solid rgba(255, 255, 255, 0.02);
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.node-meta-group {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.node-tag {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+}
+
+.node-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--emerald);
+  box-shadow: 0 0 8px var(--emerald);
+  animation: pulseBeacon 2s infinite;
+}
+
+.node-title {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-pure);
+  letter-spacing: 0.06em;
+}
+
+.node-arch-badge {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  padding-left: 0.5rem;
+}
+
+.deployment-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.strip-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.current-site-badge {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--emerald);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.node-telemetry-metrics {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.telemetry-pill {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+}
+
+.telemetry-pill .pill-label {
+  font-size: 0.64rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.telemetry-pill .pill-value {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.telemetry-pill .pill-sub {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+}
+
+.text-emerald { color: var(--emerald) !important; }
+.text-cyan { color: var(--cyan) !important; }
+.text-amber { color: var(--amber) !important; }
+
+/* Campaign Status Badges */
+.badge-campaign-active {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 3px 9px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: var(--emerald);
+  border-radius: var(--radius-pill);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.badge-campaign-logged {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  background: rgba(6, 182, 212, 0.08);
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  color: var(--cyan);
+  border-radius: var(--radius-pill);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.badge-campaign-pending {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  color: var(--text-muted);
+  border-radius: var(--radius-pill);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+}
+
+.mini-pulse-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--emerald);
+  box-shadow: 0 0 6px var(--emerald);
+  animation: pulseBeacon 1.5s infinite;
+}
+
+.site-role-desc {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
 .console-body {
   padding: 2rem;
   display: flex;

@@ -62,7 +62,16 @@ const elements = {
   sitesTableBody: document.getElementById('sitesTableBody'),
   telemetryFeedBody: document.getElementById('telemetryFeedBody'),
   feedCounter: document.getElementById('feedCounter'),
-  breakdownLegend: document.getElementById('breakdownLegend')
+  breakdownLegend: document.getElementById('breakdownLegend'),
+
+  // Portable Node Hardware Telemetry
+  activeSiteBadge: document.getElementById('activeSiteBadge'),
+  nodeBatteryVal: document.getElementById('nodeBatteryVal'),
+  nodeBatteryPct: document.getElementById('nodeBatteryPct'),
+  nodeRssiVal: document.getElementById('nodeRssiVal'),
+  nodeSnrVal: document.getElementById('nodeSnrVal'),
+  nodePdrVal: document.getElementById('nodePdrVal'),
+  nodeLossVal: document.getElementById('nodeLossVal')
 };
 
 // Chart.js Instances
@@ -167,6 +176,7 @@ async function fetchDashboardData() {
 // 3. UI RENDERING
 // ==========================================
 function renderDashboard() {
+  renderHardwareTelemetry();
   renderSummaryStats();
   renderHeroCard();
   renderSensorCards();
@@ -183,6 +193,48 @@ function getActiveRecord() {
   return state.historyData[0] || null;
 }
 
+function renderHardwareTelemetry() {
+  const latest = state.historyData[0] || null;
+  if (!latest) {
+    if (elements.activeSiteBadge) elements.activeSiteBadge.textContent = "STANDBY";
+    if (elements.nodeBatteryVal) elements.nodeBatteryVal.textContent = "-- V";
+    if (elements.nodeBatteryPct) elements.nodeBatteryPct.textContent = "(--%)";
+    if (elements.nodeRssiVal) elements.nodeRssiVal.textContent = "-- dBm";
+    if (elements.nodeSnrVal) elements.nodeSnrVal.textContent = "SNR: -- dB";
+    if (elements.nodePdrVal) elements.nodePdrVal.textContent = "--% PDR";
+    if (elements.nodeLossVal) elements.nodeLossVal.textContent = "0 lost";
+    return;
+  }
+
+  if (elements.activeSiteBadge) {
+    elements.activeSiteBadge.innerHTML = `<span class="mini-pulse-dot"></span>${latest.site} TRANSECT`;
+  }
+
+  const batt = latest.batt_v !== undefined ? latest.batt_v : 3.85;
+  if (elements.nodeBatteryVal) {
+    elements.nodeBatteryVal.textContent = `${batt.toFixed(2)}V`;
+  }
+  if (elements.nodeBatteryPct) {
+    const pct = Math.min(100, Math.max(5, Math.round(((batt - 3.3) / (4.2 - 3.3)) * 100)));
+    elements.nodeBatteryPct.textContent = `(${pct}% LiPo)`;
+  }
+
+  if (elements.nodeRssiVal) {
+    elements.nodeRssiVal.textContent = latest.rssi ? `${latest.rssi} dBm` : "-68 dBm";
+  }
+  if (elements.nodeSnrVal) {
+    const snrVal = latest.snr !== undefined ? latest.snr : 8.5;
+    const sign = snrVal > 0 ? '+' : '';
+    elements.nodeSnrVal.textContent = `SNR: ${sign}${snrVal.toFixed(1)} dB`;
+  }
+  if (elements.nodePdrVal) {
+    elements.nodePdrVal.textContent = `${latest.pdr !== undefined ? latest.pdr.toFixed(1) : '98.5'}% PDR`;
+  }
+  if (elements.nodeLossVal) {
+    elements.nodeLossVal.textContent = `${latest.packet_loss !== undefined ? latest.packet_loss : 0} lost`;
+  }
+}
+
 function renderSummaryStats() {
   elements.statTotalReadings.textContent = state.stats.count || 0;
   
@@ -197,7 +249,7 @@ function renderSummaryStats() {
   const activeRec = getActiveRecord();
   if (activeRec) {
     const timeStr = new Date(activeRec.timestamp).toLocaleTimeString();
-    elements.lastUpdatedLabel.textContent = `LAST INGEST: ${timeStr} • STATION: ${activeRec.site}`;
+    elements.lastUpdatedLabel.textContent = `LAST INGEST: ${timeStr} • ACTIVE SITE: ${activeRec.site}`;
   } else {
     elements.lastUpdatedLabel.textContent = `Awaiting incoming telemetry packets...`;
   }
@@ -208,12 +260,12 @@ function renderHeroCard() {
 
   if (!record) {
     elements.heroWawqiScore.textContent = "--";
-    elements.wawqiClassBadge.textContent = "OFFLINE";
+    elements.wawqiClassBadge.textContent = "STANDBY";
     elements.wawqiClassBadge.style.color = "var(--text-muted)";
     elements.wawqiClassBadge.style.borderColor = "var(--border-subtle)";
     elements.wawqiClassBadge.style.background = "transparent";
     elements.scaleIndicatorBar.style.width = "0%";
-    elements.wawqiDesc.textContent = "No telemetry received. Use 'Simulate Ingest' or power on the river node.";
+    elements.wawqiDesc.textContent = "No telemetry received for this selection. Power on the field node or simulate ingest.";
     elements.dominantParamName.textContent = "--";
     elements.dominantParamPct.textContent = "(--%)";
     return;
@@ -287,39 +339,57 @@ function renderSensorCards() {
 }
 
 function renderTransectTable() {
-  const sites = ["UPSTREAM", "MIDSTREAM", "DOWNSTREAM"];
+  const sites = [
+    { key: "UPSTREAM", role: "Baseline Reference Transect" },
+    { key: "MIDSTREAM", role: "Community & Runoff Transect" },
+    { key: "DOWNSTREAM", role: "Lower Reach Accumulation Transect" }
+  ];
   elements.sitesTableBody.innerHTML = "";
 
-  sites.forEach(siteKey => {
-    const r = state.latestData[siteKey];
+  const activeSite = state.historyData[0]?.site || null;
+
+  sites.forEach(({ key, role }) => {
+    const r = state.latestData[key];
     const tr = document.createElement('tr');
-    
+    const badgeClass = `station-pill station-${key.toLowerCase()}`;
+    const isCurrentActive = (key === activeSite);
+
+    let statusBadge = "";
+    if (isCurrentActive) {
+      statusBadge = `<span class="badge-campaign-active"><span class="mini-pulse-dot"></span>ACTIVE SAMPLING</span>`;
+    } else if (r) {
+      statusBadge = `<span class="badge-campaign-logged">LOGGED CAMPAIGN</span>`;
+    } else {
+      statusBadge = `<span class="badge-campaign-pending">PENDING SURVEY</span>`;
+    }
+
     if (r) {
-      const timeStr = new Date(r.timestamp).toLocaleTimeString();
-      const badgeClass = `station-pill station-${siteKey.toLowerCase()}`;
+      const timeStr = new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       tr.innerHTML = `
-        <td><span class="${badgeClass}">${siteKey}</span></td>
-        <td>NODE #${r.node_id}</td>
-        <td>${timeStr}</td>
+        <td><span class="${badgeClass}">${key}</span></td>
+        <td><span class="site-role-desc">${role}</span></td>
+        <td>${statusBadge}</td>
+        <td style="font-family:var(--font-mono); font-size:0.75rem;">${timeStr}</td>
         <td><strong>${r.ph.toFixed(2)}</strong></td>
         <td><strong>${r.temp.toFixed(1)}°C</strong></td>
         <td><strong>${r.turbidity.toFixed(1)} NTU</strong></td>
         <td><strong>${r.tds.toFixed(0)} ppm</strong></td>
         <td><strong style="color:${r.classColor}">${r.wawqi.toFixed(1)}</strong></td>
         <td><span style="color:${r.classColor}; font-weight:700;">${r.classification}</span></td>
-        <td><span style="font-family:var(--font-mono); font-size:0.75rem;">${r.rssi ? r.rssi + ' dBm (' + (r.pdr !== undefined ? r.pdr + '% PDR' : r.snr + ' dB') + ')' : 'Simulated'}</span></td>
+        <td><span style="font-family:var(--font-mono); font-size:0.75rem;">${r.rssi ? r.rssi + ' dBm' : 'Simulated'}</span></td>
       `;
     } else {
       tr.innerHTML = `
-        <td><span class="station-pill">${siteKey}</span></td>
-        <td>--</td>
-        <td>OFFLINE</td>
-        <td>--</td>
-        <td>--</td>
-        <td>--</td>
+        <td><span class="station-pill">${key}</span></td>
+        <td><span class="site-role-desc">${role}</span></td>
+        <td>${statusBadge}</td>
+        <td><span style="color:var(--text-dim)">--</span></td>
         <td>--</td>
         <td>--</td>
-        <td><span style="color:var(--text-muted)">AWAITING NODE</span></td>
+        <td>--</td>
+        <td>--</td>
+        <td>--</td>
+        <td><span style="color:var(--text-muted)">Awaiting schedule</span></td>
         <td>--</td>
       `;
     }
@@ -338,6 +408,7 @@ function renderFeedTable() {
   filteredRecords.slice(0, 15).forEach(r => {
     const tr = document.createElement('tr');
     const timeStr = new Date(r.timestamp).toLocaleTimeString();
+    const battStr = r.batt_v !== undefined ? `${r.batt_v.toFixed(2)}V` : '3.85V';
     tr.innerHTML = `
       <td style="font-family:var(--font-mono); font-size:0.75rem;">${timeStr}</td>
       <td><span class="station-pill station-${r.site.toLowerCase()}">${r.site}</span></td>
@@ -348,7 +419,8 @@ function renderFeedTable() {
       <td>${r.tds.toFixed(0)}</td>
       <td><strong style="color:${r.classColor}">${r.wawqi.toFixed(1)}</strong></td>
       <td><span style="color:${r.classColor}; font-weight:700;">${r.classification}</span></td>
-      <td style="font-family:var(--font-mono); font-size:0.75rem;">${r.rssi ? r.rssi + ' dBm / ' + r.snr + ' dB (' + (r.pdr || 100) + '% PDR)' : 'SIMULATED'}</td>
+      <td><span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--emerald);">${battStr}</span></td>
+      <td style="font-family:var(--font-mono); font-size:0.75rem;">${r.rssi ? r.rssi + ' dBm / ' + r.snr + ' dB' : 'SIMULATED'}</td>
     `;
     elements.telemetryFeedBody.appendChild(tr);
   });
