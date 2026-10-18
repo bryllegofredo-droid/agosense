@@ -1,0 +1,16 @@
+{
+  "name": "agosense-server",
+  "version": "1.0.0",
+  "description": "Agosense IoT Water Quality Monitoring & WAWQI Assessment Server",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.117.3",
+    "cors": "^2.8.5",
+    "dotenv": "^18.0.8",
+    "express": "^4.21.2"
+  }
+}

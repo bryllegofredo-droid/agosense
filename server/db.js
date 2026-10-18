@@ -1,0 +1,338 @@
+/**
+ * =====================================================================================
+ * Agosense Telemetry Store (Supabase Cloud + Local Fallback)
+ * =====================================================================================
+ */
+
+require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+const { createClient } = require('@supabase/supabase-js');
+const { evaluateWAWQI } = require('./wawqi');
+
+// Supabase Client Initialization
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
+
+let supabase = null;
+if (supabaseUrl && supabaseKey && !supabaseUrl.includes('your-project-ref')) {
+  try {
+    supabase = createClient(supabaseUrl, supabaseKey);
+    console.log(` Connected to Supabase Project: ${supabaseUrl}`);
+  } catch (err) {
+    console.warn("⚠️ Failed to initialize Supabase client, using local fallback:", err.message);
+  }
+} else {
+  console.log("ℹ️ No Supabase credentials found in .env. Operating in local JSON mode.");
+}
+
+// Local Fallback Storage
+const DATA_DIR = path.join(__dirname, 'data');
+const DATA_FILE = path.join(DATA_DIR, 'telemetry.json');
+
+try {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+  if (!fs.existsSync(DATA_FILE)) {
+    fs.writeFileSync(DATA_FILE, JSON.stringify([], null, 2), 'utf-8');
+  }
+} catch (err) {
+  // Graceful fallback for serverless read-only filesystems
+}
+
+function loadLocalRecords() {
+  try {
+    const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+    return JSON.parse(raw);
+  } catch (err) {
+    return [];
+  }
+}
+
+function saveLocalRecords(records) {
+  try {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(records, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Local file write error:', err);
+  }
+}
+
+/**
+ * Inserts telemetry reading into Supabase (and mirrors locally)
+ */
+async function insertTelemetry(packet) {
+  const ph = Number(packet.ph || 7.0);
+  const temp = Number(packet.temp || 25.0);
+  const turbidity = Number(packet.turb_ntu !== undefined ? packet.turb_ntu : (packet.turbidity || 0));
+  const tds = Number(packet.tds || 0);
+
+  // Compute WAWQI metrics mathematically
+  const wqiResult = evaluateWAWQI({ ph, temp, turbidity, tds });
+
+  const record = {
+    id: `rec_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+    timestamp: packet.timestamp || new Date().toISOString(),
+    site: (packet.site || "UPSTREAM").toUpperCase(),
+    node_id: packet.node_id || 1,
+    seq: packet.seq || 1,
+    temp,
+    ph,
+    turb_v: packet.turb_v || 0,
+    turbidity,
+    tds,
+    rssi: packet.rssi !== undefined ? Number(packet.rssi) : null,
+    snr: packet.snr !== undefined ? Number(packet.snr) : null,
+    freq_error: packet.freq_error !== undefined ? Number(packet.freq_error) : 0,
+    pdr: packet.pdr !== undefined ? Number(packet.pdr) : 100.0,
+    packet_loss: packet.packet_loss !== undefined ? Number(packet.packet_loss) : 0,
+    batt_v: packet.batt_v !== undefined ? Number(packet.batt_v) : null,
+    tx_pwr: packet.tx_pwr !== undefined ? Number(packet.tx_pwr) : 17,
+    path_loss: (packet.tx_pwr !== undefined && packet.rssi !== undefined) ? Number(packet.tx_pwr) - Number(packet.rssi) : null,
+    wawqi: wqiResult.wawqi,
+    classification: wqiResult.classification,
+    classColor: wqiResult.classColor,
+    classBadge: wqiResult.classBadge,
+    dominantParameter: wqiResult.dominantParameter,
+    dominantContributionPct: wqiResult.dominantContributionPct,
+    subIndices: wqiResult.subIndices,
+    contributionPercentages: wqiResult.contributionPercentages,
+    qualityRatings: wqiResult.qualityRatings,
+    compliance: wqiResult.compliance
+  };
+
+  // Always mirror locally
+  const localRecords = loadLocalRecords();
+  localRecords.unshift(record);
+  saveLocalRecords(localRecords);
+
+  // If Supabase is connected, insert row into Supabase 'telemetry_logs' table
+  if (supabase) {
+    try {
+      const { error } = await supabase.from('telemetry_logs').insert([{
+        timestamp: record.timestamp,
+        station_id: record.site,
+        packet_seq: record.seq,
+        ph_value: record.ph,
+        temp_celsius: record.temp,
+        turbidity_voltage: record.turb_v,
+        turbidity_ntu: record.turbidity,
+        tds_ppm: record.tds,
+        wawqi_score: record.wawqi,
+        classification: record.classification,
+        dominant_parameter: record.dominantParameter,
+        dominant_contribution_pct: record.dominantContributionPct,
+        subindex_ph: record.subIndices.pH,
+        subindex_temp: record.subIndices.temperature,
+        subindex_turbidity: record.subIndices.turbidity,
+        subindex_tds: record.subIndices.tds,
+        quality_ph: record.qualityRatings.pH,
+        quality_temp: record.qualityRatings.temperature,
+        quality_turbidity: record.qualityRatings.turbidity,
+        quality_tds: record.qualityRatings.tds,
+        rssi_dbm: record.rssi,
+        snr_db: record.snr
+      }]);
+
+      if (error) {
+        console.warn('⚠️ Supabase insert warning:', error.message);
+      } else {
+        console.log(` Synced packet to Supabase [${record.site} #${record.seq}]`);
+      }
+    } catch (err) {
+      console.error('Supabase communication error:', err.message);
+    }
+  }
+
+  return record;
+}
+
+/**
+ * Returns latest telemetry for each station
+ */
+async function getLatestBySite() {
+  const sites = ["UPSTREAM", "MIDSTREAM", "DOWNSTREAM"];
+  const result = {};
+
+  if (supabase) {
+    try {
+      for (const site of sites) {
+        const { data, error } = await supabase
+          .from('telemetry_logs')
+          .select('*')
+          .eq('station_id', site)
+          .order('timestamp', { ascending: false })
+          .limit(1);
+
+        if (!error && data && data.length > 0) {
+          const row = data[0];
+          result[site] = mapSupabaseRowToTelemetry(row);
+        } else {
+          result[site] = null;
+        }
+      }
+      return result;
+    } catch (err) {
+      console.warn("Falling back to local records for getLatestBySite");
+    }
+  }
+
+  // Local fallback
+  const local = loadLocalRecords();
+  sites.forEach(site => {
+    result[site] = local.find(r => r.site === site) || null;
+  });
+  return result;
+}
+
+/**
+ * Returns telemetry history
+ */
+async function getHistory(site = null, limit = 100) {
+  if (supabase) {
+    try {
+      let query = supabase
+        .from('telemetry_logs')
+        .select('*')
+        .order('timestamp', { ascending: false })
+        .limit(Number(limit));
+
+      if (site && site.toUpperCase() !== "ALL") {
+        query = query.eq('station_id', site.toUpperCase());
+      }
+
+      const { data, error } = await query;
+      if (!error && data) {
+        return data.map(mapSupabaseRowToTelemetry);
+      }
+    } catch (err) {
+      console.warn("Falling back to local records for getHistory");
+    }
+  }
+
+  // Local fallback
+  const local = loadLocalRecords();
+  let filtered = local;
+  if (site && site.toUpperCase() !== "ALL") {
+    filtered = filtered.filter(r => r.site === site.toUpperCase());
+  }
+  return filtered.slice(0, Number(limit));
+}
+
+/**
+ * Computes descriptive statistics
+ */
+async function getStatistics(site = null) {
+  const records = await getHistory(site, 2000);
+  if (records.length === 0) {
+    return { count: 0, sites: ["UPSTREAM", "MIDSTREAM", "DOWNSTREAM"] };
+  }
+
+  function statsFor(key) {
+    const values = records.map(r => r[key]).filter(v => typeof v === 'number' && !isNaN(v));
+    if (values.length === 0) return { mean: 0, std: 0, min: 0, max: 0 };
+    const n = values.length;
+    const mean = values.reduce((a, b) => a + b, 0) / n;
+    const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / n;
+    return {
+      mean: Number(mean.toFixed(2)),
+      std: Number(Math.sqrt(variance).toFixed(2)),
+      min: Number(Math.min(...values).toFixed(2)),
+      max: Number(Math.max(...values).toFixed(2))
+    };
+  }
+
+  let phCompliant = 0;
+  let tempCompliant = 0;
+  let turbCompliant = 0;
+  let tdsCompliant = 0;
+
+  records.forEach(r => {
+    if (r.compliance?.pH) phCompliant++;
+    if (r.compliance?.temperature) tempCompliant++;
+    if (r.compliance?.turbidity) turbCompliant++;
+    if (r.compliance?.tds) tdsCompliant++;
+  });
+
+  const total = records.length;
+
+  return {
+    count: total,
+    metrics: {
+      wawqi: statsFor('wawqi'),
+      ph: statsFor('ph'),
+      temperature: statsFor('temp'),
+      turbidity: statsFor('turbidity'),
+      tds: statsFor('tds')
+    },
+    complianceRates: {
+      pH: Number(((phCompliant / total) * 100).toFixed(1)),
+      temperature: Number(((tempCompliant / total) * 100).toFixed(1)),
+      turbidity: Number(((turbCompliant / total) * 100).toFixed(1)),
+      tds: Number(((tdsCompliant / total) * 100).toFixed(1))
+    }
+  };
+}
+
+/**
+ * Helper to map Supabase database columns back to frontend telemetry object
+ */
+function mapSupabaseRowToTelemetry(row) {
+  const wqiResult = evaluateWAWQI({
+    ph: Number(row.ph_value),
+    temp: Number(row.temp_celsius),
+    turbidity: Number(row.turbidity_ntu),
+    tds: Number(row.tds_ppm)
+  });
+
+  return {
+    id: `db_${row.id}`,
+    timestamp: row.timestamp,
+    site: row.station_id,
+    node_id: row.station_id === "UPSTREAM" ? 1 : row.station_id === "MIDSTREAM" ? 2 : 3,
+    seq: row.packet_seq,
+    temp: Number(row.temp_celsius),
+    ph: Number(row.ph_value),
+    turb_v: Number(row.turbidity_voltage || 0),
+    turbidity: Number(row.turbidity_ntu),
+    tds: Number(row.tds_ppm),
+    rssi: row.rssi_dbm,
+    snr: row.snr_db ? Number(row.snr_db) : null,
+    wawqi: Number(row.wawqi_score),
+    classification: row.classification,
+    classColor: wqiResult.classColor,
+    classBadge: wqiResult.classBadge,
+    dominantParameter: row.dominant_parameter,
+    dominantContributionPct: Number(row.dominant_contribution_pct),
+    subIndices: wqiResult.subIndices,
+    contributionPercentages: wqiResult.contributionPercentages,
+    qualityRatings: wqiResult.qualityRatings,
+    compliance: wqiResult.compliance
+  };
+}
+
+/**
+ * CSV Export
+ */
+async function exportCSV(site = null) {
+  const records = await getHistory(site, 5000);
+  const headers = [
+    "Timestamp", "Site", "Sequence", "pH", "Temp_C", "Turbidity_NTU",
+    "TDS_ppm", "WAWQI", "Classification", "Dominant_Parameter", "RSSI_dBm", "SNR_dB"
+  ];
+
+  const rows = records.map(r => [
+    r.timestamp, r.site, r.seq, r.ph, r.temp, r.turbidity,
+    r.tds, r.wawqi, `"${r.classification}"`, r.dominantParameter, r.rssi || "", r.snr || ""
+  ]);
+
+  return [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
+}
+
+module.exports = {
+  insertTelemetry,
+  getLatestBySite,
+  getHistory,
+  getStatistics,
+  exportCSV
+};

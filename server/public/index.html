@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agosense — Precision River Telemetry & WAWQI Assessment</title>
+  <meta name="description" content="Autonomous IoT multi-parameter water quality monitoring and mathematical WAWQI assessment platform for the Balutakay River.">
+  
+  <!-- Premium Modern Typography: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Ambient Space Background & Glowing Atmospheric Grid -->
+  <div class="ambient-glow"></div>
+  <div class="grid-overlay"></div>
+
+  <div class="app-container">
+    <!-- Top Minimalist Navigation -->
+    <header class="top-nav">
+      <div class="nav-left">
+        <span class="brand-wordmark">AGOSENSE</span>
+        <span class="brand-divider">/</span>
+        <span class="brand-meta">Balutakay River Transect</span>
+      </div>
+
+      <nav class="nav-center">
+        <div class="site-nav-pill" id="siteTabs" role="tablist">
+          <button class="site-pill-btn active" data-site="ALL" id="tabAll" role="tab" aria-selected="true">All Stations</button>
+          <button class="site-pill-btn" data-site="UPSTREAM" id="tabUpstream" role="tab" aria-selected="false">Upstream</button>
+          <button class="site-pill-btn" data-site="MIDSTREAM" id="tabMidstream" role="tab" aria-selected="false">Midstream</button>
+          <button class="site-pill-btn" data-site="DOWNSTREAM" id="tabDownstream" role="tab" aria-selected="false">Downstream</button>
+        </div>
+      </nav>
+
+      <div class="nav-right">
+        <div class="gateway-status" id="gatewayStatusBadge">
+          <span class="status-dot"></span>
+          <span class="status-text">LoRa Gateway Active</span>
+        </div>
+        <button class="pill-btn pill-btn-ghost" id="btnSimulate">Simulate Ingest</button>
+        <button class="pill-btn pill-btn-primary" id="btnExportCSV">Export Records</button>
+      </div>
+    </header>
+
+    <!-- Hero Header Section -->
+    <section class="hero-section">
+      <div class="hero-badge-wrapper">
+        <span class="hero-badge">DENR DAO 2016-08 • Mathematical WAWQI Framework</span>
+      </div>
+      <h1 class="hero-title">Precision River Telemetry.<br>Automated Water Classification.</h1>
+      <p class="hero-subtitle">
+        Continuous multi-parameter data collection via long-range LoRa RF telemetry, computing real-time Weighted Arithmetic Water Quality sub-indices and water safety ratings.
+      </p>
+    </section>
+
+    <!-- Master Console Wrapper -->
+    <div class="console-frame">
+      <div class="console-header-bar">
+        <div class="console-title-group">
+          <span class="console-section-label">TELEMETRY MONITOR</span>
+          <span class="console-timestamp" id="lastUpdatedLabel">Connecting to gateway...</span>
+        </div>
+        <div class="console-stats-group">
+          <div class="console-stat-item">
+            <span class="console-stat-label">TOTAL PACKETS</span>
+            <span class="console-stat-value" id="statTotalReadings">0</span>
+          </div>
+          <div class="console-stat-item">
+            <span class="console-stat-label">COMPLIANCE RATE</span>
+            <span class="console-stat-value text-accent" id="statComplianceRate">--%</span>
+          </div>
+          <div class="console-stat-item">
+            <span class="console-stat-label">FRAMEWORK</span>
+            <span class="console-stat-value">Class C Standard</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Dashboard Grid -->
+      <main class="console-body">
+        <!-- Top Metrics Row: Primary WAWQI Hero + 4 Parameters -->
+        <div class="metrics-row">
+          <!-- WAWQI Card -->
+          <div class="glass-card card-wawqi-index">
+            <div class="card-top-row">
+              <span class="card-label">WAWQI AGGREGATE SCORE</span>
+              <span class="badge-status" id="wawqiClassBadge">Evaluating...</span>
+            </div>
+
+            <div class="wawqi-hero-display">
+              <div class="wawqi-number-group">
+                <span class="wawqi-score-number" id="heroWawqiScore">--</span>
+                <span class="wawqi-score-baseline">/ 100</span>
+              </div>
+              <p class="wawqi-classification-text" id="wawqiDesc">
+                Awaiting telemetry transmission from field monitoring node.
+              </p>
+            </div>
+
+            <div class="scale-visual-track">
+              <div class="scale-fill-indicator" id="scaleIndicatorBar"></div>
+            </div>
+
+            <div class="scale-ticks">
+              <span>0 (Pristine)</span>
+              <span>25</span>
+              <span>50</span>
+              <span>75</span>
+              <span>100+ (Unfit)</span>
+            </div>
+
+            <div class="dominant-strip" id="dominantFactorBox">
+              <span class="dominant-label">PRIMARY DRIVER</span>
+              <span class="dominant-name" id="dominantParamName">--</span>
+              <span class="dominant-share" id="dominantParamPct">(--%)</span>
+            </div>
+          </div>
+
+          <!-- Parameter 1: pH -->
+          <div class="glass-card param-card" id="cardPh">
+            <div class="card-top-row">
+              <span class="card-label">HYDROGEN-ION (pH)</span>
+              <span class="status-pill status-pass" id="badgePhStatus">NORMAL</span>
+            </div>
+            <div class="param-value-row">
+              <span class="param-number" id="valPh">--</span>
+              <span class="param-unit">pH</span>
+            </div>
+            <div class="param-meta-row">
+              <span class="meta-label">Limit: 6.5 – 8.5</span>
+              <span class="meta-rating" id="qPhVal">Q: --</span>
+            </div>
+            <div class="mini-progress-track">
+              <div class="mini-progress-fill" id="barPh" style="width: 50%;"></div>
+            </div>
+          </div>
+
+          <!-- Parameter 2: Temperature -->
+          <div class="glass-card param-card" id="cardTemp">
+            <div class="card-top-row">
+              <span class="card-label">WATER TEMPERATURE</span>
+              <span class="status-pill status-pass" id="badgeTempStatus">NORMAL</span>
+            </div>
+            <div class="param-value-row">
+              <span class="param-number" id="valTemp">--</span>
+              <span class="param-unit">°C</span>
+            </div>
+            <div class="param-meta-row">
+              <span class="meta-label">Limit: ≤ 30.0 °C</span>
+              <span class="meta-rating" id="qTempVal">Q: --</span>
+            </div>
+            <div class="mini-progress-track">
+              <div class="mini-progress-fill" id="barTemp" style="width: 55%;"></div>
+            </div>
+          </div>
+
+          <!-- Parameter 3: Turbidity -->
+          <div class="glass-card param-card" id="cardTurb">
+            <div class="card-top-row">
+              <span class="card-label">TURBIDITY</span>
+              <span class="status-pill status-pass" id="badgeTurbStatus">NORMAL</span>
+            </div>
+            <div class="param-value-row">
+              <span class="param-number" id="valTurb">--</span>
+              <span class="param-unit">NTU</span>
+            </div>
+            <div class="param-meta-row">
+              <span class="meta-label">Limit: ≤ 5.0 NTU</span>
+              <span class="meta-rating" id="qTurbVal">Q: --</span>
+            </div>
+            <div class="mini-progress-track">
+              <div class="mini-progress-fill" id="barTurb" style="width: 40%;"></div>
+            </div>
+          </div>
+
+          <!-- Parameter 4: TDS -->
+          <div class="glass-card param-card" id="cardTds">
+            <div class="card-top-row">
+              <span class="card-label">TOTAL DISSOLVED SOLIDS</span>
+              <span class="status-pill status-pass" id="badgeTdsStatus">NORMAL</span>
+            </div>
+            <div class="param-value-row">
+              <span class="param-number" id="valTds">--</span>
+              <span class="param-unit">ppm</span>
+            </div>
+            <div class="param-meta-row">
+              <span class="meta-label">Limit: ≤ 500 ppm</span>
+              <span class="meta-rating" id="qTdsVal">Q: --</span>
+            </div>
+            <div class="mini-progress-track">
+              <div class="mini-progress-fill" id="barTds" style="width: 30%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Middle Analytical Section: Time-Series & Mathematical Weight Breakdown -->
+        <div class="analytics-row">
+          <!-- Dynamic Time-Series Chart Card -->
+          <div class="glass-card chart-card">
+            <div class="chart-header">
+              <div>
+                <span class="card-label">TEMPORAL OBSERVATIONS</span>
+                <h2 class="chart-title">Water Quality Index Trendline</h2>
+              </div>
+              <div class="segmented-control">
+                <button class="segment-btn active" data-metric="wawqi" id="btnFilterWawqi">WAWQI Index</button>
+                <button class="segment-btn" data-metric="parameters" id="btnFilterParams">Multi-Sensor Overlay</button>
+              </div>
+            </div>
+            <div class="chart-canvas-container">
+              <canvas id="trendChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Sub-Index Weight Contribution Card -->
+          <div class="glass-card breakdown-card">
+            <div class="chart-header">
+              <div>
+                <span class="card-label">SUB-INDEX COMPOSITION</span>
+                <h2 class="chart-title">Parameter Influence (Qi × Wi)</h2>
+              </div>
+            </div>
+            <div class="breakdown-canvas-wrapper">
+              <canvas id="breakdownChart"></canvas>
+            </div>
+            <div class="breakdown-list" id="breakdownLegend">
+              <!-- Dynamically populated without icons -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Spatial Transect Comparison Table -->
+        <div class="glass-card table-panel">
+          <div class="table-header-row">
+            <div>
+              <span class="card-label">RIVER TRANSECT STATIONS</span>
+              <h2 class="chart-title">Synchronous Station Monitoring</h2>
+            </div>
+            <span class="table-badge">3 River Sites Monitored</span>
+          </div>
+
+          <div class="table-wrapper">
+            <table class="minimal-table" id="sitesTable">
+              <thead>
+                <tr>
+                  <th>STATION</th>
+                  <th>NODE</th>
+                  <th>TIMESTAMP</th>
+                  <th>pH</th>
+                  <th>TEMPERATURE</th>
+                  <th>TURBIDITY</th>
+                  <th>TDS</th>
+                  <th>WAWQI</th>
+                  <th>CLASSIFICATION</th>
+                  <th>RF LINK</th>
+                </tr>
+              </thead>
+              <tbody id="sitesTableBody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Live Ingest Packet Stream -->
+        <div class="glass-card table-panel">
+          <div class="table-header-row">
+            <div>
+              <span class="card-label">INGESTION STREAM</span>
+              <h2 class="chart-title">Live LoRa Telemetry Packets</h2>
+            </div>
+            <span class="stream-counter" id="feedCounter">0 packets logged</span>
+          </div>
+
+          <div class="table-wrapper feed-scroll-wrapper">
+            <table class="minimal-table" id="telemetryFeedTable">
+              <thead>
+                <tr>
+                  <th>TIMESTAMP</th>
+                  <th>STATION</th>
+                  <th>PACKET SEQ</th>
+                  <th>pH</th>
+                  <th>TEMP (°C)</th>
+                  <th>TURBIDITY (NTU)</th>
+                  <th>TDS (ppm)</th>
+                  <th>WAWQI</th>
+                  <th>RATING</th>
+                  <th>RSSI / SNR</th>
+                </tr>
+              </thead>
+              <tbody id="telemetryFeedBody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Minimalist Technical Footer -->
+    <footer class="app-footer">
+      <div class="footer-col">
+        <span class="footer-title">Agosense Research Initiative</span>
+        <span class="footer-text">Cor Jesu College • Department of Computer Engineering / Sciences</span>
+      </div>
+      <div class="footer-col footer-col-right">
+        <span class="footer-text">DAO 2016-08 Mathematical Compliance • Semtech SX1276 LoRa Protocol</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
