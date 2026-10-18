@@ -21,6 +21,7 @@
 #include <LoRa.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 
 // ==========================================
 // 1. NETWORK & SERVER CONFIGURATION
@@ -29,8 +30,10 @@
 const char* WIFI_SSID     = "YOUR_WIFI_SSID";
 const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
 
-// Address of your Agosense backend server (e.g., your laptop's local IP on the same WiFi)
-const char* SERVER_URL    = "http://192.168.1.100:3000/api/telemetry";
+// Address of your Agosense cloud backend server (Vercel)
+const char* SERVER_URL    = "https://agosense.vercel.app/api/telemetry";
+const char* GATEWAY_KEY   = "agosense_secret_field_key_2026";
+
 
 // ==========================================
 // 2. HELTEC LORA PIN DEFINITIONS (V2)
@@ -136,9 +139,13 @@ bool postToServer(String jsonPayload, int rssi, float snr, long freqError, int r
     return false;
   }
 
+  WiFiClientSecure client;
+  client.setInsecure(); // Allows secure HTTPS forwarding to cloud without uploading certificate bundles
+
   HTTPClient http;
-  http.begin(SERVER_URL);
+  http.begin(client, SERVER_URL);
   http.addHeader("Content-Type", "application/json");
+  http.addHeader("X-Gateway-Auth", GATEWAY_KEY);
   http.addHeader("X-Gateway-ID", "Heltec-GW-01");
 
   // Inject comprehensive RF connectivity diagnostics into JSON payload
