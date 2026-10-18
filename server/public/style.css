@@ -249,6 +249,18 @@ body {
   box-shadow: 0 4px 20px rgba(255, 255, 255, 0.3);
 }
 
+.pill-btn-danger {
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--rose);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+}
+
+.pill-btn-danger:hover {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #ffffff;
+}
+
 /* ==========================================
    HERO HEADER SECTION
    ========================================== */
@@ -910,6 +922,72 @@ body {
   font-size: 0.72rem;
   font-family: var(--font-mono);
   color: var(--text-muted);
+}
+
+.table-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.feed-filter-group {
+  display: flex;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  padding: 3px;
+  gap: 3px;
+}
+
+.feed-filter-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.feed-filter-btn:hover {
+  color: var(--text-pure);
+}
+
+.feed-filter-btn.active {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-pure);
+}
+
+.badge-source-real {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: var(--emerald);
+  border-radius: var(--radius-pill);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-family: var(--font-mono);
+}
+
+.badge-source-sim {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: var(--amber);
+  border-radius: var(--radius-pill);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-family: var(--font-mono);
 }
 
 .table-wrapper {

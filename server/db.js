@@ -98,7 +98,8 @@ async function insertTelemetry(packet) {
     subIndices: wqiResult.subIndices,
     contributionPercentages: wqiResult.contributionPercentages,
     qualityRatings: wqiResult.qualityRatings,
-    compliance: wqiResult.compliance
+    compliance: wqiResult.compliance,
+    is_simulated: Boolean(packet.is_simulated || false)
   };
 
   // Always mirror locally
@@ -188,7 +189,8 @@ async function getLatestBySite() {
 /**
  * Returns telemetry history
  */
-async function getHistory(site = null, limit = 100) {
+async function getHistory(site = null, limit = 100, filter = null) {
+  let records = [];
   if (supabase) {
     try {
       let query = supabase
@@ -201,9 +203,15 @@ async function getHistory(site = null, limit = 100) {
         query = query.eq('station_id', site.toUpperCase());
       }
 
+      if (filter === 'real') {
+        query = query.neq('is_simulated', true);
+      } else if (filter === 'simulated') {
+        query = query.eq('is_simulated', true);
+      }
+
       const { data, error } = await query;
       if (!error && data) {
-        return data.map(mapSupabaseRowToTelemetry);
+        records = data.map(mapSupabaseRowToTelemetry);
       }
     } catch (err) {
       console.warn("Falling back to local records for getHistory");
@@ -211,12 +219,44 @@ async function getHistory(site = null, limit = 100) {
   }
 
   // Local fallback
-  const local = loadLocalRecords();
-  let filtered = local;
-  if (site && site.toUpperCase() !== "ALL") {
-    filtered = filtered.filter(r => r.site === site.toUpperCase());
+  if (!records.length) {
+    records = loadLocalRecords();
+    if (site && site.toUpperCase() !== "ALL") {
+      records = records.filter(r => r.site === site.toUpperCase());
+    }
   }
-  return filtered.slice(0, Number(limit));
+
+  if (filter === 'real') {
+    records = records.filter(r => !r.is_simulated);
+  } else if (filter === 'simulated') {
+    records = records.filter(r => Boolean(r.is_simulated));
+  }
+
+  return records.slice(0, Number(limit));
+}
+
+/**
+ * Clears all simulated test records from local storage and Supabase
+ */
+async function clearSimulatedRecords() {
+  const local = loadLocalRecords();
+  const originalCount = local.length;
+  const purged = local.filter(r => !r.is_simulated);
+  saveLocalRecords(purged);
+  const deletedCount = originalCount - purged.length;
+
+  if (supabase) {
+    try {
+      const { error } = await supabase.from('telemetry_logs').delete().eq('is_simulated', true);
+      if (error) {
+        console.warn('⚠️ Supabase clear simulated warning:', error.message);
+      }
+    } catch (err) {
+      console.warn('Supabase delete error:', err.message);
+    }
+  }
+
+  return { deletedCount: deletedCount >= 0 ? deletedCount : 0 };
 }
 
 /**
@@ -307,23 +347,36 @@ function mapSupabaseRowToTelemetry(row) {
     subIndices: wqiResult.subIndices,
     contributionPercentages: wqiResult.contributionPercentages,
     qualityRatings: wqiResult.qualityRatings,
-    compliance: wqiResult.compliance
+    compliance: wqiResult.compliance,
+    is_simulated: Boolean(row.is_simulated || false)
   };
 }
 
 /**
  * CSV Export
  */
-async function exportCSV(site = null) {
-  const records = await getHistory(site, 5000);
+async function exportCSV(site = null, filter = 'all') {
+  const records = await getHistory(site, 5000, filter);
   const headers = [
-    "Timestamp", "Site", "Sequence", "pH", "Temp_C", "Turbidity_NTU",
-    "TDS_ppm", "WAWQI", "Classification", "Dominant_Parameter", "RSSI_dBm", "SNR_dB"
+    "Timestamp", "Location", "Sequence", "pH", "Temp_C", "Turbidity_NTU",
+    "TDS_ppm", "WAWQI", "Classification", "Dominant_Parameter", "Battery_V", "RSSI_dBm", "SNR_dB", "Data_Source"
   ];
 
   const rows = records.map(r => [
-    r.timestamp, r.site, r.seq, r.ph, r.temp, r.turbidity,
-    r.tds, r.wawqi, `"${r.classification}"`, r.dominantParameter, r.rssi || "", r.snr || ""
+    r.timestamp,
+    `"${r.site}"`,
+    r.seq,
+    r.ph,
+    r.temp,
+    r.turbidity,
+    r.tds,
+    r.wawqi,
+    `"${r.classification}"`,
+    `"${r.dominantParameter}"`,
+    r.batt_v !== null && r.batt_v !== undefined ? r.batt_v : "",
+    r.rssi !== null ? r.rssi : "",
+    r.snr !== null ? r.snr : "",
+    r.is_simulated ? "SIMULATED_TEST" : "REAL_LORA_PROTOTYPE"
   ]);
 
   return [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
@@ -334,5 +387,6 @@ module.exports = {
   getLatestBySite,
   getHistory,
   getStatistics,
+  clearSimulatedRecords,
   exportCSV
 };

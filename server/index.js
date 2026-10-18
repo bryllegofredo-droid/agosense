@@ -8,7 +8,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { insertTelemetry, getLatestBySite, getHistory, getStatistics, exportCSV } = require('./db');
+const { insertTelemetry, getLatestBySite, getHistory, getStatistics, clearSimulatedRecords, exportCSV } = require('./db');
 const { getStandards, setStandards, evaluateWAWQI } = require('./wawqi');
 
 const app = express();
@@ -45,6 +45,7 @@ function checkGatewayAuth(req, res, next) {
 app.post('/api/telemetry', checkGatewayAuth, async (req, res) => {
   try {
     const data = req.body;
+    data.is_simulated = false; // Authentic hardware LoRa packet
     console.log(`[INGEST] Packet received from site=${data.site || 'UNKNOWN'} seq=${data.seq || 'N/A'}`);
 
     if (data.ph === undefined && data.temp === undefined && data.tds === undefined) {
@@ -86,7 +87,8 @@ app.get('/api/history', async (req, res) => {
   try {
     const site = req.query.site || null;
     const limit = req.query.limit || 100;
-    const records = await getHistory(site, limit);
+    const filter = req.query.filter || null; // 'real', 'simulated', or null/all
+    const records = await getHistory(site, limit, filter);
     res.json(records);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -182,7 +184,8 @@ app.post('/api/simulate', async (req, res) => {
       pdr: Number((96.0 + Math.random() * 4.0).toFixed(1)),
       packet_loss: Math.floor(Math.random() * 3),
       batt_v: Number((3.85 + Math.random() * 0.3).toFixed(2)),
-      tx_pwr: 17
+      tx_pwr: 17,
+      is_simulated: true // Explicitly tagged test data
     };
 
     const record = await insertTelemetry(sample);
@@ -193,15 +196,33 @@ app.post('/api/simulate', async (req, res) => {
 });
 
 /**
- * 8. CSV Data Export
+ * 8. Clear Simulated Test Data
+ * POST /api/clear-simulated
+ */
+app.post('/api/clear-simulated', async (req, res) => {
+  try {
+    const result = await clearSimulatedRecords();
+    res.json({
+      status: "success",
+      deletedCount: result.deletedCount,
+      message: `Successfully cleared ${result.deletedCount} simulated test record(s).`
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * 9. CSV Data Export
  * GET /api/export/csv
  */
 app.get('/api/export/csv', async (req, res) => {
   try {
     const site = req.query.site || null;
-    const csvContent = await exportCSV(site);
+    const filter = req.query.filter || 'all'; // 'real', 'simulated', or 'all'
+    const csvContent = await exportCSV(site, filter);
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="agosense_water_quality_${site || 'all'}_${Date.now()}.csv"`);
+    res.setHeader('Content-Disposition', `attachment; filename="agosense_water_quality_${filter}_${Date.now()}.csv"`);
     res.send(csvContent);
   } catch (err) {
     res.status(500).json({ error: err.message });

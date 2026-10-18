@@ -8,6 +8,7 @@
 // Application State
 const state = {
   activeMetric: "wawqi",
+  feedFilter: "all",
   historyData: [],
   stats: {},
   pollInterval: null
@@ -16,7 +17,9 @@ const state = {
 // DOM Elements
 const elements = {
   btnSimulate: document.getElementById('btnSimulate'),
+  btnClearSimulated: document.getElementById('btnClearSimulated'),
   btnExportCSV: document.getElementById('btnExportCSV'),
+  feedFilterBtns: document.querySelectorAll('.feed-filter-btn'),
   btnFilterWawqi: document.getElementById('btnFilterWawqi'),
   btnFilterParams: document.getElementById('btnFilterParams'),
   lastUpdatedLabel: document.getElementById('lastUpdatedLabel'),
@@ -124,9 +127,46 @@ function bindEvents() {
     }
   });
 
-  // Export CSV
+  // Purge Simulated Test Data Button
+  if (elements.btnClearSimulated) {
+    elements.btnClearSimulated.addEventListener('click', async () => {
+      const confirmed = confirm(
+        "Are you sure you want to purge all simulated test packets?\n\nThis permanently deletes test data from the database and leaves only authentic field sensor records."
+      );
+      if (!confirmed) return;
+
+      elements.btnClearSimulated.disabled = true;
+      elements.btnClearSimulated.textContent = "Purging...";
+
+      try {
+        const res = await fetch('/api/clear-simulated', { method: 'POST' });
+        const result = await res.json();
+        alert(result.message || 'Simulated records purged successfully.');
+        await fetchDashboardData();
+      } catch (err) {
+        console.error("Error clearing simulated data:", err);
+        alert("Failed to clear simulated records: " + err.message);
+      } finally {
+        elements.btnClearSimulated.disabled = false;
+        elements.btnClearSimulated.textContent = "Purge Test Data";
+      }
+    });
+  }
+
+  // Feed Filter Toggles (All / Real / Simulated)
+  elements.feedFilterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      elements.feedFilterBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.feedFilter = btn.getAttribute('data-filter') || 'all';
+      renderFeedTable();
+      updateTrendChart();
+    });
+  });
+
+  // Export CSV (Respects current filter)
   elements.btnExportCSV.addEventListener('click', () => {
-    window.location.href = '/api/export/csv';
+    window.location.href = `/api/export/csv?filter=${state.feedFilter}`;
   });
 }
 
@@ -307,16 +347,28 @@ function renderSensorCards() {
 }
 
 function renderFeedTable() {
-  elements.feedCounter.textContent = `${state.historyData.length} packets logged`;
+  let filtered = state.historyData;
+  if (state.feedFilter === 'real') {
+    filtered = filtered.filter(r => !r.is_simulated);
+  } else if (state.feedFilter === 'simulated') {
+    filtered = filtered.filter(r => Boolean(r.is_simulated));
+  }
+
+  elements.feedCounter.textContent = `${filtered.length} packets logged`;
   elements.telemetryFeedBody.innerHTML = "";
 
-  state.historyData.slice(0, 15).forEach(r => {
+  filtered.slice(0, 15).forEach(r => {
     const tr = document.createElement('tr');
     const timeStr = new Date(r.timestamp).toLocaleTimeString();
     const battStr = r.batt_v !== undefined ? `${r.batt_v.toFixed(2)}V` : '3.85V';
+    const sourceBadge = r.is_simulated
+      ? `<span class="badge-source-sim">SIMULATED</span>`
+      : `<span class="badge-source-real">REAL LORA</span>`;
+
     tr.innerHTML = `
       <td style="font-family:var(--font-mono); font-size:0.75rem;">${timeStr}</td>
       <td style="font-family:var(--font-mono); font-weight:600;">#${r.seq}</td>
+      <td>${sourceBadge}</td>
       <td>${r.ph.toFixed(2)}</td>
       <td>${r.temp.toFixed(1)}</td>
       <td>${r.turbidity.toFixed(1)}</td>
@@ -397,7 +449,14 @@ function initCharts() {
 function updateTrendChart() {
   if (!trendChartInstance) return;
 
-  const filtered = state.historyData.slice(0, 20).reverse();
+  let filtered = state.historyData;
+  if (state.feedFilter === 'real') {
+    filtered = filtered.filter(r => !r.is_simulated);
+  } else if (state.feedFilter === 'simulated') {
+    filtered = filtered.filter(r => Boolean(r.is_simulated));
+  }
+  filtered = filtered.slice(0, 20).reverse();
+
   const labels = filtered.map(r => new Date(r.timestamp).toLocaleTimeString());
 
   if (state.activeMetric === "wawqi") {

@@ -14,7 +14,7 @@
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   
-  <link rel="stylesheet" href="style.css?v=3.1">
+  <link rel="stylesheet" href="style.css?v=4.0">
 </head>
 <body>
   <!-- Ambient Space Background & Glowing Atmospheric Grid -->
@@ -36,6 +36,7 @@
           <span class="status-text">LoRa Gateway Active</span>
         </div>
         <button class="pill-btn pill-btn-ghost" id="btnSimulate">Simulate Ingest</button>
+        <button class="pill-btn pill-btn-danger" id="btnClearSimulated" title="Purge all simulated test packets from database">Purge Test Data</button>
         <button class="pill-btn pill-btn-primary" id="btnExportCSV">Export Records</button>
       </div>
     </header>
@@ -272,7 +273,14 @@
               <span class="card-label">INGESTION STREAM</span>
               <h2 class="chart-title">Live LoRa Telemetry Packets</h2>
             </div>
-            <span class="stream-counter" id="feedCounter">0 packets logged</span>
+            <div class="table-header-controls">
+              <div class="feed-filter-group" id="feedFilterGroup">
+                <button class="feed-filter-btn active" data-filter="all">All Packets</button>
+                <button class="feed-filter-btn" data-filter="real">Real LoRa Only</button>
+                <button class="feed-filter-btn" data-filter="simulated">Simulated Only</button>
+              </div>
+              <span class="stream-counter" id="feedCounter">0 packets logged</span>
+            </div>
           </div>
 
           <div class="table-wrapper feed-scroll-wrapper">
@@ -281,6 +289,7 @@
                 <tr>
                   <th>TIMESTAMP</th>
                   <th>PACKET SEQ</th>
+                  <th>SOURCE</th>
                   <th>pH</th>
                   <th>TEMP (°C)</th>
                   <th>TURBIDITY (NTU)</th>
@@ -312,6 +321,6 @@
     </footer>
   </div>
 
-  <script src="app.js?v=3.1"></script>
+  <script src="app.js?v=4.0"></script>
 </body>
 </html>
