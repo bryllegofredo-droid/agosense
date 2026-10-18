@@ -14,7 +14,7 @@
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   
-  <link rel="stylesheet" href="style.css?v=2.0">
+  <link rel="stylesheet" href="style.css?v=3.0">
 </head>
 <body>
   <!-- Ambient Space Background & Glowing Atmospheric Grid -->
@@ -27,17 +27,8 @@
       <div class="nav-left">
         <span class="brand-wordmark">AGOSENSE</span>
         <span class="brand-divider">/</span>
-        <span class="brand-meta">Portable Field Station #1</span>
+        <span class="brand-meta">Balutakay River Monitoring Station</span>
       </div>
-
-      <nav class="nav-center">
-        <div class="site-nav-pill" id="siteTabs" role="tablist">
-          <button class="site-pill-btn active" data-site="ALL" id="tabAll" role="tab" aria-selected="true">All Surveys</button>
-          <button class="site-pill-btn" data-site="UPSTREAM" id="tabUpstream" role="tab" aria-selected="false">Upstream</button>
-          <button class="site-pill-btn" data-site="MIDSTREAM" id="tabMidstream" role="tab" aria-selected="false">Midstream</button>
-          <button class="site-pill-btn" data-site="DOWNSTREAM" id="tabDownstream" role="tab" aria-selected="false">Downstream</button>
-        </div>
-      </nav>
 
       <div class="nav-right">
         <div class="gateway-status" id="gatewayStatusBadge">
@@ -52,11 +43,11 @@
     <!-- Hero Header Section -->
     <section class="hero-section">
       <div class="hero-badge-wrapper">
-        <span class="hero-badge">DENR DAO 2016-08 • Mathematical WAWQI Framework • Sequential Sampling Protocol</span>
+        <span class="hero-badge">DENR DAO 2016-08 • Mathematical WAWQI Framework</span>
       </div>
       <h1 class="hero-title">Precision River Telemetry.<br>Automated Water Classification.</h1>
       <p class="hero-subtitle">
-        Portable multi-parameter IoT field station transmitting real-time sensor telemetry via long-range Semtech SX1276 LoRa RF, computing mathematical WAWQI sub-indices across Balutakay River sampling transects.
+        Continuous multi-parameter data collection via long-range Semtech SX1276 LoRa RF telemetry, computing real-time Weighted Arithmetic Water Quality sub-indices and water safety ratings.
       </p>
     </section>
 
@@ -88,12 +79,12 @@
         <div class="node-meta-group">
           <div class="node-tag">
             <span class="node-pulse-dot"></span>
-            <span class="node-title">PROTOTYPE NODE #1</span>
+            <span class="node-title">AGOSENSE FIELD NODE</span>
             <span class="node-arch-badge">ESP32 • SX1276 LoRa</span>
           </div>
           <div class="deployment-indicator">
-            <span class="strip-label">ACTIVE CAMPAIGN:</span>
-            <span class="current-site-badge" id="activeSiteBadge">DETECTING...</span>
+            <span class="strip-label">LOCATION:</span>
+            <span class="current-site-badge">BALUTAKAY RIVER</span>
           </div>
         </div>
 
@@ -274,47 +265,12 @@
           </div>
         </div>
 
-        <!-- Spatial Transect Comparison Table -->
-        <!-- Spatial Transect Comparison Table -->
-        <div class="glass-card table-panel">
-          <div class="table-header-row">
-            <div>
-              <span class="card-label">SEQUENTIAL RIVER TRANSECTS</span>
-              <h2 class="chart-title">Transect Campaigns & Historical Baseline</h2>
-            </div>
-            <span class="table-badge">Sequential Sampling Protocol</span>
-          </div>
-
-          <div class="table-wrapper">
-            <table class="minimal-table" id="sitesTable">
-              <thead>
-                <tr>
-                  <th>TRANSECT SITE</th>
-                  <th>ENVIRONMENTAL ROLE</th>
-                  <th>CAMPAIGN STATUS</th>
-                  <th>LAST SURVEYED</th>
-                  <th>pH</th>
-                  <th>TEMPERATURE</th>
-                  <th>TURBIDITY</th>
-                  <th>TDS</th>
-                  <th>WAWQI</th>
-                  <th>CLASSIFICATION</th>
-                  <th>RF LINK</th>
-                </tr>
-              </thead>
-              <tbody id="sitesTableBody">
-                <!-- Dynamically populated -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-
         <!-- Live Ingest Packet Stream -->
         <div class="glass-card table-panel">
           <div class="table-header-row">
             <div>
               <span class="card-label">INGESTION STREAM</span>
-              <h2 class="chart-title">Live LoRa Telemetry Packets (Node #1)</h2>
+              <h2 class="chart-title">Live LoRa Telemetry Packets</h2>
             </div>
             <span class="stream-counter" id="feedCounter">0 packets logged</span>
           </div>
@@ -324,7 +280,6 @@
               <thead>
                 <tr>
                   <th>TIMESTAMP</th>
-                  <th>TRANSECT</th>
                   <th>PACKET SEQ</th>
                   <th>pH</th>
                   <th>TEMP (°C)</th>
@@ -357,6 +312,6 @@
     </footer>
   </div>
 
-  <script src="app.js?v=2.0"></script>
+  <script src="app.js?v=3.0"></script>
 </body>
 </html>

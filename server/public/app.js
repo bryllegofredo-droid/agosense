@@ -7,9 +7,7 @@
 
 // Application State
 const state = {
-  currentSite: "ALL",
   activeMetric: "wawqi",
-  latestData: {},
   historyData: [],
   stats: {},
   pollInterval: null
@@ -17,7 +15,6 @@ const state = {
 
 // DOM Elements
 const elements = {
-  siteTabs: document.querySelectorAll('.site-pill-btn'),
   btnSimulate: document.getElementById('btnSimulate'),
   btnExportCSV: document.getElementById('btnExportCSV'),
   btnFilterWawqi: document.getElementById('btnFilterWawqi'),
@@ -59,13 +56,11 @@ const elements = {
   barTds: document.getElementById('barTds'),
 
   // Tables & Feeds
-  sitesTableBody: document.getElementById('sitesTableBody'),
   telemetryFeedBody: document.getElementById('telemetryFeedBody'),
   feedCounter: document.getElementById('feedCounter'),
   breakdownLegend: document.getElementById('breakdownLegend'),
 
-  // Portable Node Hardware Telemetry
-  activeSiteBadge: document.getElementById('activeSiteBadge'),
+  // Node Hardware Telemetry
   nodeBatteryVal: document.getElementById('nodeBatteryVal'),
   nodeBatteryPct: document.getElementById('nodeBatteryPct'),
   nodeRssiVal: document.getElementById('nodeRssiVal'),
@@ -91,20 +86,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function bindEvents() {
-  // Station Tabs
-  elements.siteTabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      elements.siteTabs.forEach(t => {
-        t.classList.remove('active');
-        t.setAttribute('aria-selected', 'false');
-      });
-      tab.classList.add('active');
-      tab.setAttribute('aria-selected', 'true');
-      state.currentSite = tab.getAttribute('data-site');
-      renderDashboard();
-    });
-  });
-
   // Trend Metric Toggle (WAWQI vs 4 Parameters)
   elements.btnFilterWawqi.addEventListener('click', () => {
     elements.btnFilterWawqi.classList.add('active');
@@ -126,11 +107,10 @@ function bindEvents() {
     elements.btnSimulate.textContent = "Simulating...";
 
     try {
-      const siteToSimulate = state.currentSite === "ALL" ? null : state.currentSite;
       const res = await fetch('/api/simulate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ site: siteToSimulate })
+        body: JSON.stringify({})
       });
       await res.json();
       await fetchDashboardData();
@@ -146,8 +126,7 @@ function bindEvents() {
 
   // Export CSV
   elements.btnExportCSV.addEventListener('click', () => {
-    const siteParam = state.currentSite === "ALL" ? "" : `?site=${state.currentSite}`;
-    window.location.href = `/api/export/csv${siteParam}`;
+    window.location.href = '/api/export/csv';
   });
 }
 
@@ -156,13 +135,11 @@ function bindEvents() {
 // ==========================================
 async function fetchDashboardData() {
   try {
-    const [latestRes, historyRes, statsRes] = await Promise.all([
-      fetch('/api/latest'),
+    const [historyRes, statsRes] = await Promise.all([
       fetch('/api/history?limit=50'),
       fetch('/api/stats')
     ]);
 
-    state.latestData = await latestRes.json();
     state.historyData = await historyRes.json();
     state.stats = await statsRes.json();
 
@@ -180,23 +157,18 @@ function renderDashboard() {
   renderSummaryStats();
   renderHeroCard();
   renderSensorCards();
-  renderTransectTable();
   renderFeedTable();
   updateTrendChart();
   updateBreakdownChart();
 }
 
 function getActiveRecord() {
-  if (state.currentSite !== "ALL") {
-    return state.latestData[state.currentSite] || null;
-  }
   return state.historyData[0] || null;
 }
 
 function renderHardwareTelemetry() {
   const latest = state.historyData[0] || null;
   if (!latest) {
-    if (elements.activeSiteBadge) elements.activeSiteBadge.textContent = "STANDBY";
     if (elements.nodeBatteryVal) elements.nodeBatteryVal.textContent = "-- V";
     if (elements.nodeBatteryPct) elements.nodeBatteryPct.textContent = "(--%)";
     if (elements.nodeRssiVal) elements.nodeRssiVal.textContent = "-- dBm";
@@ -204,10 +176,6 @@ function renderHardwareTelemetry() {
     if (elements.nodePdrVal) elements.nodePdrVal.textContent = "--% PDR";
     if (elements.nodeLossVal) elements.nodeLossVal.textContent = "0 lost";
     return;
-  }
-
-  if (elements.activeSiteBadge) {
-    elements.activeSiteBadge.innerHTML = `<span class="mini-pulse-dot"></span>${latest.site} TRANSECT`;
   }
 
   const batt = latest.batt_v !== undefined ? latest.batt_v : 3.85;
@@ -249,7 +217,7 @@ function renderSummaryStats() {
   const activeRec = getActiveRecord();
   if (activeRec) {
     const timeStr = new Date(activeRec.timestamp).toLocaleTimeString();
-    elements.lastUpdatedLabel.textContent = `LAST INGEST: ${timeStr} • ACTIVE SITE: ${activeRec.site}`;
+    elements.lastUpdatedLabel.textContent = `LAST INGEST: ${timeStr} • STATION: Balutakay River`;
   } else {
     elements.lastUpdatedLabel.textContent = `Awaiting incoming telemetry packets...`;
   }
@@ -338,81 +306,17 @@ function renderSensorCards() {
   elements.barTds.style.width = `${Math.min(100, (record.tds / 800) * 100)}%`;
 }
 
-function renderTransectTable() {
-  const sites = [
-    { key: "UPSTREAM", role: "Baseline Reference Transect" },
-    { key: "MIDSTREAM", role: "Community & Runoff Transect" },
-    { key: "DOWNSTREAM", role: "Lower Reach Accumulation Transect" }
-  ];
-  elements.sitesTableBody.innerHTML = "";
-
-  const activeSite = state.historyData[0]?.site || null;
-
-  sites.forEach(({ key, role }) => {
-    const r = state.latestData[key];
-    const tr = document.createElement('tr');
-    const badgeClass = `station-pill station-${key.toLowerCase()}`;
-    const isCurrentActive = (key === activeSite);
-
-    let statusBadge = "";
-    if (isCurrentActive) {
-      statusBadge = `<span class="badge-campaign-active"><span class="mini-pulse-dot"></span>ACTIVE SAMPLING</span>`;
-    } else if (r) {
-      statusBadge = `<span class="badge-campaign-logged">LOGGED CAMPAIGN</span>`;
-    } else {
-      statusBadge = `<span class="badge-campaign-pending">PENDING SURVEY</span>`;
-    }
-
-    if (r) {
-      const timeStr = new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      tr.innerHTML = `
-        <td><span class="${badgeClass}">${key}</span></td>
-        <td><span class="site-role-desc">${role}</span></td>
-        <td>${statusBadge}</td>
-        <td style="font-family:var(--font-mono); font-size:0.75rem;">${timeStr}</td>
-        <td><strong>${r.ph.toFixed(2)}</strong></td>
-        <td><strong>${r.temp.toFixed(1)}°C</strong></td>
-        <td><strong>${r.turbidity.toFixed(1)} NTU</strong></td>
-        <td><strong>${r.tds.toFixed(0)} ppm</strong></td>
-        <td><strong style="color:${r.classColor}">${r.wawqi.toFixed(1)}</strong></td>
-        <td><span style="color:${r.classColor}; font-weight:700;">${r.classification}</span></td>
-        <td><span style="font-family:var(--font-mono); font-size:0.75rem;">${r.rssi ? r.rssi + ' dBm' : 'Simulated'}</span></td>
-      `;
-    } else {
-      tr.innerHTML = `
-        <td><span class="station-pill">${key}</span></td>
-        <td><span class="site-role-desc">${role}</span></td>
-        <td>${statusBadge}</td>
-        <td><span style="color:var(--text-dim)">--</span></td>
-        <td>--</td>
-        <td>--</td>
-        <td>--</td>
-        <td>--</td>
-        <td>--</td>
-        <td><span style="color:var(--text-muted)">Awaiting schedule</span></td>
-        <td>--</td>
-      `;
-    }
-    elements.sitesTableBody.appendChild(tr);
-  });
-}
-
 function renderFeedTable() {
-  const filteredRecords = state.currentSite === "ALL" 
-    ? state.historyData 
-    : state.historyData.filter(r => r.site === state.currentSite);
-
-  elements.feedCounter.textContent = `${filteredRecords.length} packets logged`;
+  elements.feedCounter.textContent = `${state.historyData.length} packets logged`;
   elements.telemetryFeedBody.innerHTML = "";
 
-  filteredRecords.slice(0, 15).forEach(r => {
+  state.historyData.slice(0, 15).forEach(r => {
     const tr = document.createElement('tr');
     const timeStr = new Date(r.timestamp).toLocaleTimeString();
     const battStr = r.batt_v !== undefined ? `${r.batt_v.toFixed(2)}V` : '3.85V';
     tr.innerHTML = `
       <td style="font-family:var(--font-mono); font-size:0.75rem;">${timeStr}</td>
-      <td><span class="station-pill station-${r.site.toLowerCase()}">${r.site}</span></td>
-      <td>#${r.seq}</td>
+      <td style="font-family:var(--font-mono); font-weight:600;">#${r.seq}</td>
       <td>${r.ph.toFixed(2)}</td>
       <td>${r.temp.toFixed(1)}</td>
       <td>${r.turbidity.toFixed(1)}</td>
@@ -493,10 +397,7 @@ function initCharts() {
 function updateTrendChart() {
   if (!trendChartInstance) return;
 
-  const filtered = state.currentSite === "ALL"
-    ? state.historyData.slice(0, 20).reverse()
-    : state.historyData.filter(r => r.site === state.currentSite).slice(0, 20).reverse();
-
+  const filtered = state.historyData.slice(0, 20).reverse();
   const labels = filtered.map(r => new Date(r.timestamp).toLocaleTimeString());
 
   if (state.activeMetric === "wawqi") {
