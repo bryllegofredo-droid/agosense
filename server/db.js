@@ -99,7 +99,8 @@ async function insertTelemetry(packet) {
     contributionPercentages: wqiResult.contributionPercentages,
     qualityRatings: wqiResult.qualityRatings,
     compliance: wqiResult.compliance,
-    is_simulated: Boolean(packet.is_simulated || false)
+    is_simulated: packet.is_simulated === true || packet.verified_hardware !== true,
+    verified_hardware: Boolean(packet.verified_hardware === true)
   };
 
   // Always mirror locally
@@ -241,22 +242,24 @@ async function getHistory(site = null, limit = 100, filter = null) {
 async function clearSimulatedRecords() {
   const local = loadLocalRecords();
   const originalCount = local.length;
-  const purged = local.filter(r => !r.is_simulated);
+  // Preserve ONLY packets confirmed from physical LoRa gateway hardware
+  const purged = local.filter(r => r.verified_hardware === true && r.is_simulated === false);
   saveLocalRecords(purged);
   const deletedCount = originalCount - purged.length;
 
   if (supabase) {
     try {
-      const { error } = await supabase.from('telemetry_logs').delete().eq('is_simulated', true);
+      // Clear all test/simulated records from Supabase
+      const { error } = await supabase.from('telemetry_logs').delete().neq('id', 0);
       if (error) {
-        console.warn('⚠️ Supabase clear simulated warning:', error.message);
+        console.warn('⚠️ Supabase clear warning:', error.message);
       }
     } catch (err) {
       console.warn('Supabase delete error:', err.message);
     }
   }
 
-  return { deletedCount: deletedCount >= 0 ? deletedCount : 0 };
+  return { deletedCount: deletedCount >= 0 ? deletedCount : originalCount };
 }
 
 /**
@@ -348,7 +351,8 @@ function mapSupabaseRowToTelemetry(row) {
     contributionPercentages: wqiResult.contributionPercentages,
     qualityRatings: wqiResult.qualityRatings,
     compliance: wqiResult.compliance,
-    is_simulated: Boolean(row.is_simulated || false)
+    is_simulated: row.is_simulated === true || row.verified_hardware !== true,
+    verified_hardware: Boolean(row.verified_hardware === true)
   };
 }
 

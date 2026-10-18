@@ -46,6 +46,7 @@ app.post('/api/telemetry', checkGatewayAuth, async (req, res) => {
   try {
     const data = req.body;
     data.is_simulated = false; // Authentic hardware LoRa packet
+    data.verified_hardware = true;
     console.log(`[INGEST] Packet received from site=${data.site || 'UNKNOWN'} seq=${data.seq || 'N/A'}`);
 
     if (data.ph === undefined && data.temp === undefined && data.tds === undefined) {
