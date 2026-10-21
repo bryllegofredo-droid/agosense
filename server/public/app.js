@@ -442,13 +442,13 @@ function initCharts() {
         legend: {
           display: true,
           position: 'top',
-          labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 11 } }
+          labels: { color: '#3f5f85', font: { family: 'Plus Jakarta Sans', size: 11 } }
         },
         tooltip: {
-          backgroundColor: 'rgba(8, 12, 22, 0.95)',
-          titleColor: '#ffffff',
-          bodyColor: '#cbd5e1',
-          borderColor: 'rgba(255, 255, 255, 0.1)',
+          backgroundColor: 'rgba(255, 255, 255, 0.97)',
+          titleColor: '#0a2540',
+          bodyColor: '#3f5f85',
+          borderColor: 'rgba(14, 90, 170, 0.25)',
           borderWidth: 1,
           padding: 10,
           titleFont: { family: 'Plus Jakarta Sans', weight: '700' }
@@ -456,12 +456,12 @@ function initCharts() {
       },
       scales: {
         x: {
-          ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } },
-          grid: { color: 'rgba(255, 255, 255, 0.03)' }
+          ticks: { color: '#6584a8', font: { family: 'JetBrains Mono', size: 9 } },
+          grid: { color: 'rgba(14, 90, 170, 0.08)' }
         },
         y: {
-          ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } },
-          grid: { color: 'rgba(255, 255, 255, 0.03)' }
+          ticks: { color: '#6584a8', font: { family: 'JetBrains Mono', size: 9 } },
+          grid: { color: 'rgba(14, 90, 170, 0.08)' }
         }
       }
     }
@@ -477,7 +477,7 @@ function initCharts() {
         data: [25, 25, 25, 25],
         backgroundColor: ['#f59e0b', '#10b981', '#ef4444', '#06b6d4'],
         borderWidth: 2,
-        borderColor: '#0a0e17'
+        borderColor: '#ffffff'
       }]
     },
     options: {
@@ -508,8 +508,8 @@ function updateTrendChart() {
       datasets: [{
         label: 'WAWQI Aggregate Score',
         data: filtered.map(r => r.wawqi),
-        borderColor: '#10b981',
-        backgroundColor: 'rgba(16, 185, 129, 0.08)',
+        borderColor: '#0284c7',
+        backgroundColor: 'rgba(14, 165, 233, 0.15)',
         fill: true,
         tension: 0.35,
         pointRadius: 2,
