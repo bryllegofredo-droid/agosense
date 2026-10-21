@@ -70,10 +70,23 @@ async function insertTelemetry(packet) {
   // Compute WAWQI metrics mathematically
   const wqiResult = evaluateWAWQI({ ph, temp, turbidity, tds });
 
+  // Determine Site / Location: dynamically resolved from map pins set in web app
+  let siteName = packet.site ? packet.site.toUpperCase() : null;
+  if (!siteName) {
+    const activePins = await getPins();
+    if (activePins && activePins.length > 0) {
+      // Pick the latest pin or match by node_id if tagged
+      const matchingPin = activePins.find(p => p.node_id === packet.node_id) || activePins[activePins.length - 1];
+      siteName = matchingPin.site || matchingPin.label || "RIVER_STATION";
+    } else {
+      siteName = "DIGOS_RIVER_NODE";
+    }
+  }
+
   const record = {
     id: `rec_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
     timestamp: packet.timestamp || new Date().toISOString(),
-    site: (packet.site || "UPSTREAM").toUpperCase(),
+    site: siteName.toUpperCase(),
     node_id: packet.node_id || 1,
     seq: packet.seq || 1,
     temp,

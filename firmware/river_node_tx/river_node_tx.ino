@@ -24,12 +24,8 @@
 #include <SPI.h>
 #include <LoRa.h>
 
-// ==========================================
-// 1. NODE CONFIGURATION & POWER MANAGEMENT
-// ==========================================
-// Change this for each physical site: "UPSTREAM", "MIDSTREAM", or "DOWNSTREAM"
-#define SITE_ID "UPSTREAM"
-const int NODE_NUM = 1; // 1 = Upstream, 2 = Midstream, 3 = Downstream
+// Node Hardware Identifier (Location/Station is assigned dynamically by Map Pin in Web App)
+const int NODE_NUM = 1; // Unique hardware ID of this physical sensor node
 
 // Heltec Onboard Status LED (GPIO 25)
 #define STATUS_LED 25
@@ -78,8 +74,8 @@ DallasTemperature tempSensor(&oneWire);
 #define VREF 3.3
 #define ADC_MAX 4095.0
 
-// pH Sensor (GPIO 35 - ADC1 input)
-#define PH_PIN 35
+// pH Sensor (GPIO 32 - ADC1 Channel 4, clean high impedance)
+#define PH_PIN 32
 float pH_intercept = 7.00;
 float pH_slope = -5.70;
 
@@ -216,15 +212,20 @@ void loop() {
     float tdsAdcVoltage = (tdsRaw / ADC_MAX) * VREF;
     float tempCompensationFactor = 1.0 + 0.02 * (compensationTemp - 25.0);
     float compensatedTdsVoltage = tdsAdcVoltage / tempCompensationFactor;
-    float tdsPPM = (133.42 * pow(compensatedTdsVoltage, 3) 
+    
+    // Calibrated with 1382 ppm standard solution (fine-tuned K_factor = 1.620)
+    const float TDS_CALIBRATION_FACTOR = 1.620;
+    float tdsPPM = ((133.42 * pow(compensatedTdsVoltage, 3) 
                   - 255.86 * pow(compensatedTdsVoltage, 2) 
-                  + 857.39 * compensatedTdsVoltage) * 0.5;
+                  + 857.39 * compensatedTdsVoltage) * 0.5) * TDS_CALIBRATION_FACTOR;
     if (tdsPPM < 0) tdsPPM = 0;
 
-    // 4. Read pH Probe
+    // 4. Read pH Probe (Calibrated with buffer 7.00 @ 1.415V and buffer 4.01 @ 1.950V)
     int phRaw = getMedianADC(PH_PIN, NUM_SAMPLES);
     float phAdcVoltage = (phRaw / ADC_MAX) * VREF;
-    float phVal = 7.0 + ((2.5 - phAdcVoltage) * pH_slope);
+    const float PH_NEUTRAL_VOLTAGE = 1.415;
+    const float PH_SLOPE = -5.589;
+    float phVal = 7.00 + ((phAdcVoltage - PH_NEUTRAL_VOLTAGE) * PH_SLOPE);
     if (phVal < 0) phVal = 0;
     if (phVal > 14) phVal = 14.0;
 
@@ -234,9 +235,8 @@ void loop() {
     float battVoltage = (battRaw / ADC_MAX) * VREF * 3.20; // calibrated divider multiplier
     if (battVoltage < 2.5 || battVoltage > 5.0) battVoltage = 3.85; // sane fallback
 
-    // 6. Build LoRa JSON Telemetry with Network Markers
+    // 6. Build LoRa JSON Telemetry with Network Markers (Site/Location dynamically tagged by Map Pin)
     String payload = "{";
-    payload += "\"site\":\"" + String(SITE_ID) + "\",";
     payload += "\"node\":" + String(NODE_NUM) + ",";
     payload += "\"seq\":" + String(bootCount) + ",";
     payload += "\"uptime\":" + String(millis() / 1000) + ",";
