@@ -190,7 +190,7 @@
       openModal(
         '<h3>New sample point</h3><p>' + lngLat.lat.toFixed(5) + ', ' + lngLat.lng.toFixed(5) + '</p>' +
         '<form id="pinForm"><input type="text" id="pinLabel" placeholder="Label (e.g. Sample 1)" maxlength="80" required>' +
-        '<select id="pinSite"><option value="">Station (optional)</option><option value="UPSTREAM">Upstream</option>' +
+        '<select id="pinSite" required><option value="">Station (links readings to this location)</option><option value="UPSTREAM">Upstream</option>' +
         '<option value="MIDSTREAM">Midstream</option><option value="DOWNSTREAM">Downstream</option></select>' +
         '<input type="text" id="pinNote" placeholder="Note (optional)" maxlength="300">' +
         '<div class="pin-modal-error" id="pinFormError"></div>' +

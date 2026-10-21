@@ -361,27 +361,51 @@ function mapSupabaseRowToTelemetry(row) {
  */
 async function exportCSV(site = null, filter = 'all') {
   const records = await getHistory(site, 5000, filter);
+  const pins = (await getPins())
+    .filter(p => p.site)
+    .map(p => ({ ...p, t: new Date(p.created_at).getTime() }))
+    .sort((a, b) => a.t - b.t);
+
+  // Match each reading to the map pin of the same station that was active when it was recorded
+  // (latest pin created at/before the reading; otherwise the earliest pin for that station).
+  function pinFor(record) {
+    const sitePins = pins.filter(p => p.site === record.site);
+    if (!sitePins.length) return null;
+    const t = new Date(record.timestamp).getTime();
+    let match = null;
+    for (const p of sitePins) {
+      if (p.t <= t) match = p; else break;
+    }
+    return match || sitePins[0];
+  }
+
   const headers = [
-    "Timestamp", "Location", "Sequence", "pH", "Temp_C", "Turbidity_NTU",
+    "Timestamp", "Location", "Latitude", "Longitude", "Pin_Label", "Sequence", "pH", "Temp_C", "Turbidity_NTU",
     "TDS_ppm", "WAWQI", "Classification", "Dominant_Parameter", "Battery_V", "RSSI_dBm", "SNR_dB", "Data_Source"
   ];
 
-  const rows = records.map(r => [
-    r.timestamp,
-    `"${r.site}"`,
-    r.seq,
-    r.ph,
-    r.temp,
-    r.turbidity,
-    r.tds,
-    r.wawqi,
-    `"${r.classification}"`,
-    `"${r.dominantParameter}"`,
-    r.batt_v !== null && r.batt_v !== undefined ? r.batt_v : "",
-    r.rssi !== null ? r.rssi : "",
-    r.snr !== null ? r.snr : "",
-    r.is_simulated ? "SIMULATED_TEST" : "REAL_LORA_PROTOTYPE"
-  ]);
+  const rows = records.map(r => {
+    const pin = pinFor(r);
+    return [
+      r.timestamp,
+      `"${r.site}"`,
+      pin ? Number(pin.lat).toFixed(6) : "",
+      pin ? Number(pin.lng).toFixed(6) : "",
+      pin ? `"${String(pin.label).replace(/"/g, '""')}"` : "",
+      r.seq,
+      r.ph,
+      r.temp,
+      r.turbidity,
+      r.tds,
+      r.wawqi,
+      `"${r.classification}"`,
+      `"${r.dominantParameter}"`,
+      r.batt_v !== null && r.batt_v !== undefined ? r.batt_v : "",
+      r.rssi !== null ? r.rssi : "",
+      r.snr !== null ? r.snr : "",
+      r.is_simulated ? "SIMULATED_TEST" : "REAL_LORA_PROTOTYPE"
+    ];
+  });
 
   return [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
 }
