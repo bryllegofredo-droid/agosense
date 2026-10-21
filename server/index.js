@@ -8,7 +8,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { insertTelemetry, getLatestBySite, getHistory, getStatistics, clearSimulatedRecords, exportCSV } = require('./db');
+const { insertTelemetry, getLatestBySite, getHistory, getStatistics, clearSimulatedRecords, exportCSV, getPins, addPin, deletePin } = require('./db');
 const { getStandards, setStandards, evaluateWAWQI } = require('./wawqi');
 
 const app = express();
@@ -225,6 +225,52 @@ app.get('/api/export/csv', async (req, res) => {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="agosense_water_quality_${filter}_${Date.now()}.csv"`);
     res.send(csvContent);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * 10. Sample location pins
+ * Anyone can view; adding / removing requires the pin password (checked server-side).
+ */
+const PIN_PASSWORD = process.env.PIN_PASSWORD || 'agosense';
+
+function checkPinAuth(req, res, next) {
+  if (req.headers['x-pin-password'] !== PIN_PASSWORD) {
+    return res.status(401).json({ error: 'Incorrect password' });
+  }
+  next();
+}
+
+app.get('/api/pins', async (req, res) => {
+  try {
+    res.json(await getPins());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/pins/auth', checkPinAuth, (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+app.post('/api/pins', checkPinAuth, async (req, res) => {
+  try {
+    const lat = Number(req.body.lat);
+    const lng = Number(req.body.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+      return res.status(400).json({ error: 'Invalid coordinates' });
+    }
+    res.status(201).json(await addPin(req.body));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/pins/:id', checkPinAuth, async (req, res) => {
+  try {
+    res.json(await deletePin(req.params.id));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

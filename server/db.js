@@ -386,11 +386,95 @@ async function exportCSV(site = null, filter = 'all') {
   return [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
 }
 
+/**
+ * ==========================================
+ * Sample location pins (map)
+ * Supabase table: sample_pins  (see DEPLOYMENT_AND_DATABASE_GUIDE.md / SQL in README of this change)
+ * Falls back to data/pins.json when Supabase is unavailable.
+ * ==========================================
+ */
+const PINS_FILE = path.join(DATA_DIR, 'pins.json');
+
+function loadLocalPins() {
+  try {
+    return JSON.parse(fs.readFileSync(PINS_FILE, 'utf-8'));
+  } catch (err) {
+    return [];
+  }
+}
+
+function saveLocalPins(pins) {
+  try {
+    fs.writeFileSync(PINS_FILE, JSON.stringify(pins, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Local pins write error:', err.message);
+  }
+}
+
+async function getPins() {
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('sample_pins')
+        .select('*')
+        .order('created_at', { ascending: true });
+      if (!error && data) return data;
+      if (error) console.warn('⚠️ Supabase pins read warning:', error.message);
+    } catch (err) {
+      console.warn('Supabase pins read error:', err.message);
+    }
+  }
+  return loadLocalPins();
+}
+
+async function addPin({ lat, lng, label, site, note }) {
+  const pin = {
+    lat: Number(lat),
+    lng: Number(lng),
+    label: String(label || 'Sample point').slice(0, 80),
+    site: site ? String(site).slice(0, 20).toUpperCase() : null,
+    note: note ? String(note).slice(0, 300) : null
+  };
+
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.from('sample_pins').insert([pin]).select().single();
+      if (!error && data) return data;
+      if (error) console.warn('⚠️ Supabase pins insert warning:', error.message);
+    } catch (err) {
+      console.warn('Supabase pins insert error:', err.message);
+    }
+  }
+
+  const local = loadLocalPins();
+  const saved = { id: `pin_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`, ...pin, created_at: new Date().toISOString() };
+  local.push(saved);
+  saveLocalPins(local);
+  return saved;
+}
+
+async function deletePin(id) {
+  if (supabase) {
+    try {
+      const { error } = await supabase.from('sample_pins').delete().eq('id', id);
+      if (error) console.warn('⚠️ Supabase pins delete warning:', error.message);
+    } catch (err) {
+      console.warn('Supabase pins delete error:', err.message);
+    }
+  }
+  const local = loadLocalPins();
+  saveLocalPins(local.filter(p => String(p.id) !== String(id)));
+  return { deleted: true };
+}
+
 module.exports = {
   insertTelemetry,
   getLatestBySite,
   getHistory,
   getStatistics,
   clearSimulatedRecords,
-  exportCSV
+  exportCSV,
+  getPins,
+  addPin,
+  deletePin
 };

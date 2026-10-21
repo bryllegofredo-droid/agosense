@@ -19,7 +19,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
   <link rel="stylesheet" href="style.css?v=5.1-river">
-  <link rel="stylesheet" href="river.css?v=1.1">
+  <link rel="stylesheet" href="river.css?v=1.2">
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.0.1/dist/maplibre-gl.css">
   <script src="https://unpkg.com/maplibre-gl@5.0.1/dist/maplibre-gl.js"></script>
 </head>
@@ -86,9 +86,14 @@
           <span class="card-label">STUDY AREA</span>
           <h2 class="chart-title" id="riverMapTitle">Digos River, Davao del Sur</h2>
         </div>
-        <span class="table-badge">~28 km • OpenStreetMap</span>
+        <div class="river-map-actions">
+          <span class="table-badge" id="pinCount">0 sample points</span>
+          <button class="pill-btn pill-btn-ghost" id="btnPinMode" type="button">Edit sample pins</button>
+        </div>
       </div>
+      <div class="pin-hint" id="pinHint" hidden>Edit mode: click anywhere on the map to drop a sample pin. Click a pin to view or remove it.</div>
       <div id="riverMap" class="river-map" role="img" aria-label="Map of the Digos River"></div>
+      <div class="pin-modal" id="pinModal" hidden></div>
     </section>
 
     <!-- Master Console Wrapper -->
@@ -360,7 +365,7 @@
     </footer>
   </div>
 
-  <script src="river-map.js?v=1.0"></script>
+  <script src="river-map.js?v=1.1"></script>
   <script src="app.js?v=5.0"></script>
 </body>
 

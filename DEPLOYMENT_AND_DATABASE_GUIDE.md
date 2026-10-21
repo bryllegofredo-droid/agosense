@@ -256,3 +256,19 @@ Once your server is deployed to `https://agosense-telemetry.onrender.com` (or yo
 - [ ] **Rate Limiting**: Add `express-rate-limit` on the ingestion route to prevent spam or DDoS attacks.
 - [ ] **Automated Backups**: Configure scheduled daily PostgreSQL backups (native in Supabase/Neon) or cron export to CSV.
 - [ ] **Data Integrity**: Verify that raw sensor voltages ($V_{\text{raw}}$) are preserved alongside computed WAWQI scores for reproducibility in research publications.
+
+## Sample Pins Table (map pins)
+
+Run in Supabase -> SQL Editor so pins persist on Vercel:
+
+```sql
+create table if not exists sample_pins (
+  id bigint generated always as identity primary key,
+  lat double precision not null,
+  lng double precision not null,
+  label text not null,
+  site text,
+  note text,
+  created_at timestamptz default now()
+);
+```
