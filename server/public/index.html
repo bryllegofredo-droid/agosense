@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Agosense — Precision River Telemetry & WAWQI Assessment</title>
   <meta name="description"
-    content="Autonomous IoT multi-parameter water quality monitoring and mathematical WAWQI assessment platform for the Balutakay River.">
+    content="Autonomous IoT multi-parameter water quality monitoring and mathematical WAWQI assessment platform for the Digos River, Davao del Sur.">
 
   <!-- Premium Modern Typography: Plus Jakarta Sans & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,7 +19,9 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
   <link rel="stylesheet" href="style.css?v=5.1-river">
-  <link rel="stylesheet" href="river.css?v=1.0">
+  <link rel="stylesheet" href="river.css?v=1.1">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.0.1/dist/maplibre-gl.css">
+  <script src="https://unpkg.com/maplibre-gl@5.0.1/dist/maplibre-gl.js"></script>
 </head>
 
 <body>
@@ -51,7 +53,7 @@
       <div class="nav-left">
         <span class="brand-wordmark">AGOSENSE</span>
         <span class="brand-divider">/</span>
-        <span class="brand-meta">Balutakay River Monitoring Station</span>
+        <span class="brand-meta">Digos River Monitoring Station</span>
       </div>
 
       <div class="nav-right">
@@ -73,8 +75,20 @@
       </div>
       <h1 class="hero-title">Precision River Telemetry.<br>Automated Water Classification.</h1>
       <p class="hero-subtitle">
-        Real-time wireless river monitoring and automated water safety assessment for the Balutakay River.
+        Real-time wireless river monitoring and automated water safety assessment for the Digos River, Davao del Sur.
       </p>
+    </section>
+
+    <!-- River Map (OpenStreetMap data, Digos River) -->
+    <section class="river-map-section" aria-labelledby="riverMapTitle">
+      <div class="river-map-header">
+        <div>
+          <span class="card-label">STUDY AREA</span>
+          <h2 class="chart-title" id="riverMapTitle">Digos River, Davao del Sur</h2>
+        </div>
+        <span class="table-badge">~28 km • OpenStreetMap</span>
+      </div>
+      <div id="riverMap" class="river-map" role="img" aria-label="Map of the Digos River"></div>
     </section>
 
     <!-- Master Console Wrapper -->
@@ -110,7 +124,7 @@
           </div>
           <div class="deployment-indicator">
             <span class="strip-label">LOCATION:</span>
-            <span class="current-site-badge">BALUTAKAY RIVER</span>
+            <span class="current-site-badge">DIGOS RIVER</span>
           </div>
         </div>
 
@@ -346,7 +360,8 @@
     </footer>
   </div>
 
-  <script src="app.js?v=4.2"></script>
+  <script src="river-map.js?v=1.0"></script>
+  <script src="app.js?v=5.0"></script>
 </body>
 
 </html>

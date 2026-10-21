@@ -257,7 +257,7 @@ function renderSummaryStats() {
   const activeRec = getActiveRecord();
   if (activeRec) {
     const timeStr = new Date(activeRec.timestamp).toLocaleTimeString();
-    elements.lastUpdatedLabel.textContent = `LAST INGEST: ${timeStr} • STATION: Balutakay River`;
+    elements.lastUpdatedLabel.textContent = `LAST INGEST: ${timeStr} • STATION: Digos River`;
   } else {
     elements.lastUpdatedLabel.textContent = `Awaiting incoming telemetry packets...`;
   }
