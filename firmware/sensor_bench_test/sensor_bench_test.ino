@@ -49,7 +49,7 @@
 SSD1306Wire display(0x3C, OLED_SDA, OLED_SCL);
 
 // Sensor Pins
-#define PH_PIN        35   // Analog pH probe
+#define PH_PIN        32   // Analog pH probe (ADC1 Channel 4 - Clean high impedance, no pull-downs)
 #define TEMP_PIN      17   // DS18B20 1-Wire Data
 #define TURBIDITY_PIN 36   // Analog Turbidity (through divider)
 #define TDS_PIN       39   // Analog TDS probe
@@ -207,9 +207,18 @@ void loop() {
   // Reconstruct true sensor AOUT voltage before the 10k:15k divider
   float turbSensorVoltage = turbAdcVoltage * TURB_DIVIDER_RATIO;
   
-  // Polynomial NTU curve: y = -1120.4*x^2 + 5742.3*x - 4352.9
-  float turbidityNTU = -1120.4 * pow(turbSensorVoltage, 2) + 5742.3 * turbSensorVoltage - 4352.9;
-  if (turbidityNTU < 0) turbidityNTU = 0;
+  // Calibrated baseline: Distilled water = 3.45V (0 NTU reference)
+  // Normalizes individual sensor baseline to standard 4.15V curve
+  const float TURB_CLEAR_VOLTAGE = 3.45;
+  float turbNormVoltage = turbSensorVoltage * (4.15 / TURB_CLEAR_VOLTAGE);
+  if (turbNormVoltage > 4.15) turbNormVoltage = 4.15;
+
+  // Calibrated polynomial curve: 0 NTU at clear water, increasing as voltage drops
+  float turbidityNTU = 0.0;
+  if (turbNormVoltage < 4.15) {
+    turbidityNTU = -1120.4 * pow(turbNormVoltage, 2) + 5742.3 * turbNormVoltage - 4352.9;
+  }
+  if (turbidityNTU < 0.0 || turbSensorVoltage >= TURB_CLEAR_VOLTAGE) turbidityNTU = 0.0;
 
   // -------------------------------------------------------------
   // 3. READ TDS SENSOR (With Temperature Compensation)
@@ -221,9 +230,11 @@ void loop() {
   float tempCoefficient = 1.0 + 0.02 * (compensationTemp - 25.0);
   float compensatedTdsVoltage = tdsAdcVoltage / tempCoefficient;
   
-  float tdsPPM = (133.42 * pow(compensatedTdsVoltage, 3) 
+  // Calibrated with 1382 ppm standard solution (fine-tuned K_factor = 1.620)
+  const float TDS_CALIBRATION_FACTOR = 1.620;
+  float tdsPPM = ((133.42 * pow(compensatedTdsVoltage, 3) 
                 - 255.86 * pow(compensatedTdsVoltage, 2) 
-                + 857.39 * compensatedTdsVoltage) * 0.5;
+                + 857.39 * compensatedTdsVoltage) * 0.5) * TDS_CALIBRATION_FACTOR;
   if (tdsPPM < 0) tdsPPM = 0;
 
   // -------------------------------------------------------------
@@ -232,8 +243,10 @@ void loop() {
   int phRaw = getMedianADC(PH_PIN, SAMPLES);
   float phAdcVoltage = (phRaw / ADC_MAX) * VREF;
   
-  // Two-point linear calibration conversion
-  float phValue = 7.0 + ((2.50 - phAdcVoltage) * pH_slope);
+  // Calibrated with buffer 7.00 (1.415V) and buffer 4.01 (1.950V)
+  const float PH_NEUTRAL_VOLTAGE = 1.415;
+  const float PH_SLOPE = -5.589;
+  float phValue = 7.00 + ((phAdcVoltage - PH_NEUTRAL_VOLTAGE) * PH_SLOPE);
   if (phValue < 0.0) phValue = 0.0;
   if (phValue > 14.0) phValue = 14.0;
 

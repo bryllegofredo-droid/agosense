@@ -200,12 +200,20 @@ void loop() {
     bool tempValid = (tempC != DEVICE_DISCONNECTED_C && tempC > -50.0 && tempC < 85.0);
     float compensationTemp = tempValid ? tempC : 25.0;
 
-    // 2. Read Turbidity
+    // 2. Read Turbidity (Calibrated baseline: Distilled water = 3.45V -> 0 NTU)
     int turbRaw = getMedianADC(TURBIDITY_PIN, NUM_SAMPLES);
     float turbAdcVoltage = (turbRaw / ADC_MAX) * VREF;
     float turbSensorVoltage = turbAdcVoltage * TURB_DIVIDER_RATIO;
-    float turbidityNTU = -1120.4 * pow(turbSensorVoltage, 2) + 5742.3 * turbSensorVoltage - 4352.9;
-    if (turbidityNTU < 0) turbidityNTU = 0;
+    
+    const float TURB_CLEAR_VOLTAGE = 3.45;
+    float turbNormVoltage = turbSensorVoltage * (4.15 / TURB_CLEAR_VOLTAGE);
+    if (turbNormVoltage > 4.15) turbNormVoltage = 4.15;
+
+    float turbidityNTU = 0.0;
+    if (turbNormVoltage < 4.15) {
+      turbidityNTU = -1120.4 * pow(turbNormVoltage, 2) + 5742.3 * turbNormVoltage - 4352.9;
+    }
+    if (turbidityNTU < 0.0 || turbSensorVoltage >= TURB_CLEAR_VOLTAGE) turbidityNTU = 0.0;
 
     // 3. Read TDS with Temperature Compensation (Eq. 2 from Math Framework)
     int tdsRaw = getMedianADC(TDS_PIN, NUM_SAMPLES);
