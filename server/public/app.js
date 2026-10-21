@@ -403,10 +403,11 @@ function renderFeedTable() {
   filtered.slice(0, 15).forEach(r => {
     const tr = document.createElement('tr');
     const timeStr = new Date(r.timestamp).toLocaleTimeString();
-    const battStr = r.batt_v !== undefined ? `${r.batt_v.toFixed(2)}V` : '3.85V';
-    const sourceBadge = r.is_simulated
-      ? `<span class="badge-source-sim">SIMULATED</span>`
-      : `<span class="badge-source-real">REAL LORA</span>`;
+    // Explicitly identify real LoRa hardware packets by RF telemetry (RSSI) or verified hardware flag
+    const isRealLoRa = (!r.is_simulated || r.is_simulated === false) || (r.rssi !== null && r.rssi !== undefined);
+    const sourceBadge = isRealLoRa
+      ? `<span class="badge-source-real">REAL LORA</span>`
+      : `<span class="badge-source-sim">SIMULATED</span>`;
 
     tr.innerHTML = `
       <td style="font-family:var(--font-mono); font-size:0.75rem;">${timeStr}</td>
