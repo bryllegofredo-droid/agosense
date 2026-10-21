@@ -301,27 +301,14 @@ bool postToServer(String jsonPayload, int rssi, float snr, long freqError, int r
   client.setInsecure(); // Allows secure HTTPS forwarding to cloud without uploading certificate bundles
   client.setTimeout(15); // seconds - TLS handshake to Vercel can be slow on weak hotspots
 
-  // Ensure reliable DNS on mobile hotspots by setting public DNS servers
-  IPAddress dns1(8, 8, 8, 8);
-  IPAddress dns2(1, 1, 1, 1);
-  WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, dns1, dns2);
-
   IPAddress serverIp;
   bool dnsResolved = WiFi.hostByName("agosense.vercel.app", serverIp);
   if (!dnsResolved || serverIp == IPAddress(0, 0, 0, 0)) {
-    Serial.println("DNS lookup returned invalid IP (" + serverIp.toString() + "). Retrying DNS...");
-    delay(500);
-    WiFi.hostByName("agosense.vercel.app", serverIp);
+    Serial.println("DNS lookup failed or returned 0.0.0.0; using Vercel Anycast IP fallback (76.76.21.21)");
+    serverIp = IPAddress(76, 76, 21, 21);
   }
 
-  Serial.println("DNS: agosense.vercel.app -> " + serverIp.toString() + " | WiFi RSSI: " + String(WiFi.RSSI()) + " dBm");
-
-  HTTPClient http;
-  http.setTimeout(15000);
-  http.begin(client, SERVER_URL);
-  http.addHeader("Content-Type", "application/json");
-  http.addHeader("X-Gateway-Auth", GATEWAY_KEY);
-  http.addHeader("X-Gateway-ID", "Heltec-GW-01");
+  Serial.println("Target: " + serverIp.toString() + ":443 (agosense.vercel.app) | WiFi RSSI: " + String(WiFi.RSSI()) + " dBm");
 
   // Inject comprehensive RF connectivity diagnostics into JSON payload
   String enrichedPayload = jsonPayload;
@@ -337,8 +324,17 @@ bool postToServer(String jsonPayload, int rssi, float snr, long freqError, int r
     enrichedPayload += "}";
   }
 
-  Serial.println("[HTTP POST] Sending to " + String(SERVER_URL));
+  Serial.println("[HTTP POST] Sending payload to https://agosense.vercel.app/api/telemetry");
   Serial.println("Payload: " + enrichedPayload);
+
+  HTTPClient http;
+  http.setTimeout(15000);
+  // Connect directly by IP to bypass DNS issues, specifying HTTPS port 443 with Host header
+  http.begin(client, serverIp.toString(), 443, "/api/telemetry", true);
+  http.addHeader("Host", "agosense.vercel.app");
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("X-Gateway-Auth", GATEWAY_KEY);
+  http.addHeader("X-Gateway-ID", "Heltec-GW-01");
 
   int httpResponseCode = http.POST(enrichedPayload);
   if (httpResponseCode <= 0) {
@@ -346,7 +342,8 @@ bool postToServer(String jsonPayload, int rssi, float snr, long freqError, int r
     Serial.println("First attempt failed (" + http.errorToString(httpResponseCode) + "), retrying...");
     http.end();
     delay(500);
-    http.begin(client, SERVER_URL);
+    http.begin(client, serverIp.toString(), 443, "/api/telemetry", true);
+    http.addHeader("Host", "agosense.vercel.app");
     http.addHeader("Content-Type", "application/json");
     http.addHeader("X-Gateway-Auth", GATEWAY_KEY);
     http.addHeader("X-Gateway-ID", "Heltec-GW-01");
