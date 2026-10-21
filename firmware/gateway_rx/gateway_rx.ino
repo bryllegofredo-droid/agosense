@@ -299,8 +299,18 @@ bool postToServer(String jsonPayload, int rssi, float snr, long freqError, int r
 
   WiFiClientSecure client;
   client.setInsecure(); // Allows secure HTTPS forwarding to cloud without uploading certificate bundles
+  client.setTimeout(15); // seconds - TLS handshake to Vercel can be slow on weak hotspots
+
+  // Diagnostics: confirm the gateway can actually resolve the server (internet + DNS)
+  IPAddress serverIp;
+  if (!WiFi.hostByName("agosense.vercel.app", serverIp)) {
+    Serial.println("DNS lookup FAILED for agosense.vercel.app -> the WiFi has no internet access (or blocks DNS).");
+  } else {
+    Serial.println("DNS OK: agosense.vercel.app -> " + serverIp.toString() + " | WiFi RSSI: " + String(WiFi.RSSI()) + " dBm");
+  }
 
   HTTPClient http;
+  http.setTimeout(15000);
   http.begin(client, SERVER_URL);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("X-Gateway-Auth", GATEWAY_KEY);
@@ -324,6 +334,17 @@ bool postToServer(String jsonPayload, int rssi, float snr, long freqError, int r
   Serial.println("Payload: " + enrichedPayload);
 
   int httpResponseCode = http.POST(enrichedPayload);
+  if (httpResponseCode <= 0) {
+    // One retry: the first TLS connection after a quiet period often fails
+    Serial.println("First attempt failed (" + http.errorToString(httpResponseCode) + "), retrying...");
+    http.end();
+    delay(500);
+    http.begin(client, SERVER_URL);
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("X-Gateway-Auth", GATEWAY_KEY);
+    http.addHeader("X-Gateway-ID", "Heltec-GW-01");
+    httpResponseCode = http.POST(enrichedPayload);
+  }
   lastHttpCode = httpResponseCode;
 
   bool success = false;
@@ -338,7 +359,8 @@ bool postToServer(String jsonPayload, int rssi, float snr, long freqError, int r
     }
   } else {
     Serial.print("Error code: ");
-    Serial.println(httpResponseCode);
+    Serial.print(httpResponseCode);
+    Serial.println(" (" + http.errorToString(httpResponseCode) + ")");
   }
 
   http.end();
