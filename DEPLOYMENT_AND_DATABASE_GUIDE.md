@@ -272,3 +272,5 @@ create table if not exists sample_pins (
   created_at timestamptz default now()
 );
 ```
+
+If pins still fail to save, also run: `alter table sample_pins disable row level security;`

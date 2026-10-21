@@ -461,13 +461,15 @@ async function addPin({ lat, lng, label, site, note }) {
   };
 
   if (supabase) {
-    try {
-      const { data, error } = await supabase.from('sample_pins').insert([pin]).select().single();
-      if (!error && data) return data;
-      if (error) console.warn('⚠️ Supabase pins insert warning:', error.message);
-    } catch (err) {
-      console.warn('Supabase pins insert error:', err.message);
+    // Supabase is the persistent store (serverless hosts have read-only disks),
+    // so never pretend a pin was saved when it wasn't.
+    const { data, error } = await supabase.from('sample_pins').insert([pin]).select().single();
+    if (error) {
+      console.warn('⚠️ Supabase pins insert warning:', error.message);
+      throw new Error('Pin could not be saved to the database: ' + error.message +
+        ' (create the sample_pins table in Supabase - see DEPLOYMENT_AND_DATABASE_GUIDE.md)');
     }
+    return data;
   }
 
   const local = loadLocalPins();
