@@ -22,13 +22,30 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
+#include <WebServer.h>
+#include <DNSServer.h>
+#include <Preferences.h>
 
 // ==========================================
 // 1. NETWORK & SERVER CONFIGURATION
 // ==========================================
-// Update with your WiFi or phone hotspot credentials
-const char* WIFI_SSID     = "YOUR_WIFI_SSID";
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+// WiFi credentials are NOT hardcoded. On first boot (or when the saved network can't be
+// reached) the gateway hosts its own hotspot, "Agosense-Gateway-Setup". Connect to it with a
+// phone/laptop, a setup page opens (or browse to http://192.168.4.1), pick your WiFi and
+// enter its password. Credentials are saved in flash (Preferences) and reused on every boot.
+// To change the network later: press and hold the PRG button for ~1.5 s during the
+// "Hold PRG" prompt shown on the OLED right after power-up.
+const char* AP_SSID       = "Agosense-Gateway-Setup";
+const unsigned long WIFI_CONNECT_TIMEOUT_MS = 15000;   // per connection attempt
+const unsigned long WIFI_LOST_RESTART_MS    = 300000;  // reboot into setup flow after 5 min offline
+#define RESET_BUTTON 0 // Heltec V2 PRG button
+
+Preferences prefs;
+WebServer portalServer(80);
+DNSServer dnsServer;
+String wifiSsid = "";
+String wifiPass = "";
+unsigned long wifiLostSince = 0;
 
 // Address of your Agosense cloud backend server (Vercel)
 const char* SERVER_URL    = "https://agosense.vercel.app/api/telemetry";
@@ -102,33 +119,174 @@ void updateGatewayOLED(String status) {
   display.display();
 }
 
-void connectWiFi() {
+// ------------------------------------------------------------------
+// WiFi provisioning (captive portal)
+// ------------------------------------------------------------------
+void showOledMessage(String l1, String l2 = "", String l3 = "", String l4 = "") {
+  display.clear();
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.setFont(ArialMT_Plain_10);
+  display.drawString(0, 0, l1);
+  display.drawString(0, 14, l2);
+  display.drawString(0, 28, l3);
+  display.drawString(0, 42, l4);
+  display.display();
+}
+
+String htmlEscape(const String& s) {
+  String out;
+  for (size_t i = 0; i < s.length(); i++) {
+    char c = s[i];
+    if (c == '&') out += "&amp;";
+    else if (c == '<') out += "&lt;";
+    else if (c == '>') out += "&gt;";
+    else if (c == '"') out += "&quot;";
+    else if (c == '\'') out += "&#39;";
+    else out += c;
+  }
+  return out;
+}
+
+const char PORTAL_STYLE[] PROGMEM =
+  "<style>body{font-family:system-ui,sans-serif;background:#f2f8fe;color:#0a2540;margin:0;padding:20px}"
+  ".card{max-width:420px;margin:0 auto;background:#fff;border:1px solid #cfe3f5;border-radius:16px;padding:24px;"
+  "box-shadow:0 12px 32px -12px rgba(3,105,161,.3)}h1{font-size:1.3rem;margin:0 0 4px;color:#0369a1}"
+  "p{color:#6584a8;font-size:.9rem}label{display:block;margin:14px 0 4px;font-weight:600;font-size:.85rem}"
+  "input,select{width:100%;box-sizing:border-box;padding:11px;border:1px solid #cfe3f5;border-radius:10px;font-size:1rem}"
+  "button{margin-top:18px;width:100%;padding:12px;border:0;border-radius:999px;color:#fff;font-size:1rem;font-weight:700;"
+  "background:linear-gradient(135deg,#0ea5e9,#0369a1)}</style>";
+
+void handlePortalRoot() {
+  int n = WiFi.scanNetworks();
+  String page = "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+                "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+                "<title>Agosense Gateway Setup</title>";
+  page += FPSTR(PORTAL_STYLE);
+  page += "</head><body><div class='card'><h1>Agosense Gateway</h1>"
+          "<p>Choose the WiFi network this gateway should use to send data to the server.</p>"
+          "<form method='POST' action='/save'><label>Network</label><select name='ssid_pick'>";
+  if (n <= 0) {
+    page += "<option value=''>No networks found - type it below</option>";
+  } else {
+    for (int i = 0; i < n; i++) {
+      String name = WiFi.SSID(i);
+      if (name.length() == 0) continue;
+      page += "<option value='" + htmlEscape(name) + "'>" + htmlEscape(name) + " (" + String(WiFi.RSSI(i)) + " dBm)</option>";
+    }
+  }
+  page += "</select><label>Or type network name (hidden networks)</label>"
+          "<input name='ssid_manual' placeholder='Optional'>"
+          "<label>Password</label><input name='pass' type='password' placeholder='WiFi password'>"
+          "<button type='submit'>Save &amp; Connect</button></form></div></body></html>";
+  portalServer.send(200, "text/html", page);
+  WiFi.scanDelete();
+}
+
+void handlePortalSave() {
+  String ssid = portalServer.arg("ssid_manual");
+  ssid.trim();
+  if (ssid.length() == 0) ssid = portalServer.arg("ssid_pick");
+  String pass = portalServer.arg("pass");
+
+  if (ssid.length() == 0) {
+    portalServer.send(400, "text/plain", "Please choose or type a network name.");
+    return;
+  }
+
+  prefs.putString("ssid", ssid);
+  prefs.putString("pass", pass);
+
+  String page = "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+                "<meta name='viewport' content='width=device-width,initial-scale=1'>";
+  page += FPSTR(PORTAL_STYLE);
+  page += "</head><body><div class='card'><h1>Saved</h1><p>The gateway is restarting and will connect to <b>"
+          + htmlEscape(ssid) + "</b>. You can close this page. If the connection fails, the setup hotspot will appear again.</p></div></body></html>";
+  portalServer.send(200, "text/html", page);
+  delay(1500);
+  ESP.restart();
+}
+
+// Blocks until the user submits credentials (device restarts afterwards).
+void startConfigPortal() {
+  Serial.println("Starting WiFi setup hotspot: " + String(AP_SSID));
+  WiFi.disconnect(true);
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.softAP(AP_SSID);
+  delay(300);
+  IPAddress apIP = WiFi.softAPIP();
+
+  dnsServer.start(53, "*", apIP); // captive portal: any hostname -> this page
+  portalServer.on("/", HTTP_GET, handlePortalRoot);
+  portalServer.on("/save", HTTP_POST, handlePortalSave);
+  portalServer.onNotFound([]() {
+    portalServer.sendHeader("Location", String("http://") + WiFi.softAPIP().toString() + "/", true);
+    portalServer.send(302, "text/plain", "");
+  });
+  portalServer.begin();
+
+  showOledMessage("WIFI SETUP MODE", "Join WiFi:", AP_SSID, "Open 192.168.4.1");
+
+  while (true) {
+    dnsServer.processNextRequest();
+    portalServer.handleClient();
+    delay(5);
+  }
+}
+
+bool tryConnectWiFi() {
   Serial.print("Connecting to WiFi: ");
-  Serial.println(WIFI_SSID);
+  Serial.println(wifiSsid);
 
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.begin(wifiSsid.c_str(), wifiPass.c_str());
+  showOledMessage("Connecting to WiFi...", wifiSsid);
 
-  display.clear();
-  display.setTextAlignment(TEXT_ALIGN_CENTER);
-  display.setFont(ArialMT_Plain_10);
-  display.drawString(64, 20, "Connecting to WiFi...");
-  display.drawString(64, 35, String(WIFI_SSID));
-  display.display();
-
-  int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+  unsigned long start = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - start < WIFI_CONNECT_TIMEOUT_MS) {
     delay(500);
     Serial.print(".");
-    attempts++;
   }
 
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("\nWiFi connected! IP address: ");
     Serial.println(WiFi.localIP());
-  } else {
-    Serial.println("\nWiFi connection failed! Telemetry will be buffered or dropped until connected.");
+    return true;
   }
+  Serial.println("\nWiFi connection failed.");
+  return false;
+}
+
+void connectWiFi() {
+  prefs.begin("gateway", false);
+
+  // Optional reset window: hold PRG ~1.5 s shortly after power-up to forget the saved network.
+  // (Done after boot, not during reset, because holding PRG while resetting enters flash mode.)
+  pinMode(RESET_BUTTON, INPUT_PULLUP);
+  showOledMessage("AGOSENSE GATEWAY", "Hold PRG now to", "change WiFi...");
+  unsigned long windowStart = millis();
+  unsigned long pressedSince = 0;
+  while (millis() - windowStart < 3000) {
+    if (digitalRead(RESET_BUTTON) == LOW) {
+      if (pressedSince == 0) pressedSince = millis();
+      if (millis() - pressedSince >= 1500) {
+        prefs.remove("ssid");
+        prefs.remove("pass");
+        Serial.println("Saved WiFi cleared.");
+        break;
+      }
+    } else {
+      pressedSince = 0;
+    }
+    delay(20);
+  }
+
+  wifiSsid = prefs.getString("ssid", "");
+  wifiPass = prefs.getString("pass", "");
+
+  if (wifiSsid.length() > 0 && tryConnectWiFi()) return;
+
+  // No saved network, or it can't be reached -> host the setup hotspot
+  startConfigPortal();
 }
 
 // Forward enriched packet to server via HTTP POST
@@ -228,9 +386,16 @@ void setup() {
 }
 
 void loop() {
-  // Check WiFi connection and auto-reconnect if dropped
+  // Check WiFi connection; try to reconnect, and reboot into the setup flow if offline too long
   if (WiFi.status() != WL_CONNECTED) {
+    if (wifiLostSince == 0) wifiLostSince = millis();
     WiFi.reconnect();
+    if (millis() - wifiLostSince > WIFI_LOST_RESTART_MS) {
+      Serial.println("WiFi offline too long - restarting.");
+      ESP.restart();
+    }
+  } else {
+    wifiLostSince = 0;
   }
 
   // Check for incoming LoRa packet
@@ -260,6 +425,8 @@ void loop() {
       if (nodeNum < 1 || nodeNum > 3) nodeNum = 1;
     }
 
+    // Node no longer sends a hardcoded site; location comes from the map pin on the server
+    lastSite = "Node " + String(nodeNum);
     int siteIndex = incomingPayload.indexOf("\"site\":\"");
     if (siteIndex != -1) {
       int endIndex = incomingPayload.indexOf("\"", siteIndex + 8);
