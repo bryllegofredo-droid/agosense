@@ -18,13 +18,32 @@
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="style.css?v=5.0-water">
+  <link rel="stylesheet" href="style.css?v=5.1-river">
+  <link rel="stylesheet" href="river.css?v=1.0">
 </head>
 
 <body>
   <!-- Ambient Space Background & Glowing Atmospheric Grid -->
   <div class="ambient-glow"></div>
   <div class="grid-overlay"></div>
+
+  <!-- Animated river flow on the left and right edges -->
+  <aside class="river-side river-left" aria-hidden="true">
+    <div class="river-flow"></div>
+    <div class="river-flow river-flow-b"></div>
+    <span class="bubble" style="left:20%;animation-delay:0s"></span>
+    <span class="bubble" style="left:55%;animation-delay:2.5s"></span>
+    <span class="bubble" style="left:80%;animation-delay:5s"></span>
+    <span class="bubble b-sm" style="left:35%;animation-delay:7s"></span>
+  </aside>
+  <aside class="river-side river-right" aria-hidden="true">
+    <div class="river-flow"></div>
+    <div class="river-flow river-flow-b"></div>
+    <span class="bubble" style="left:25%;animation-delay:1s"></span>
+    <span class="bubble" style="left:60%;animation-delay:3.5s"></span>
+    <span class="bubble" style="left:78%;animation-delay:6s"></span>
+    <span class="bubble b-sm" style="left:40%;animation-delay:8s"></span>
+  </aside>
 
   <div class="app-container">
     <!-- Top Minimalist Navigation -->

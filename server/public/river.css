@@ -1,0 +1,86 @@
+/* ==========================================
+   ANIMATED RIVER SIDE PANELS
+   Fills the unused space left/right of the 1440px dashboard
+   ========================================== */
+.river-side {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: calc((100vw - 1440px) / 2);
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.river-left {
+  left: 0;
+  -webkit-mask-image: linear-gradient(90deg, #000 45%, transparent);
+  mask-image: linear-gradient(90deg, #000 45%, transparent);
+}
+
+.river-right {
+  right: 0;
+  -webkit-mask-image: linear-gradient(270deg, #000 45%, transparent);
+  mask-image: linear-gradient(270deg, #000 45%, transparent);
+}
+
+.river-side::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(186, 230, 253, 0.55), rgba(125, 211, 252, 0.3) 50%, rgba(186, 230, 253, 0.55));
+}
+
+.river-flow {
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='400' viewBox='0 0 200 400'%3E%3Cpath d='M100 0 C160 50 40 100 100 200 S160 350 100 400' fill='none' stroke='%230ea5e9' stroke-opacity='0.45' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M60 0 C120 60 0 120 60 200 S120 340 60 400' fill='none' stroke='%2338bdf8' stroke-opacity='0.35' stroke-width='2'/%3E%3Cpath d='M140 0 C200 70 80 130 140 200 S200 330 140 400' fill='none' stroke='%230369a1' stroke-opacity='0.25' stroke-width='2'/%3E%3C/svg%3E");
+  background-size: 200px 400px;
+  background-repeat: repeat-y;
+  background-position: center 0;
+  animation: riverFlow 14s linear infinite;
+}
+
+.river-flow-b {
+  background-size: 140px 280px;
+  opacity: 0.7;
+  animation-duration: 22s;
+  transform: scaleX(-1);
+}
+
+@keyframes riverFlow {
+  from { background-position: center 0; }
+  to { background-position: center 400px; }
+}
+
+.bubble {
+  position: absolute;
+  bottom: -20px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.95), rgba(14, 165, 233, 0.35));
+  border: 1px solid rgba(14, 165, 233, 0.4);
+  animation: bubbleRise 12s ease-in infinite;
+}
+
+.bubble.b-sm {
+  width: 7px;
+  height: 7px;
+}
+
+@keyframes bubbleRise {
+  0% { transform: translate(0, 0); opacity: 0; }
+  10% { opacity: 1; }
+  50% { transform: translate(14px, -50vh); }
+  100% { transform: translate(-10px, -110vh); opacity: 0; }
+}
+
+/* Only show when there is real free space beside the dashboard */
+@media (max-width: 1560px) {
+  .river-side { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .river-flow, .bubble { animation: none; }
+}
