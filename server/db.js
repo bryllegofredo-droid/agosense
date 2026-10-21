@@ -363,9 +363,9 @@ function mapSupabaseRowToTelemetry(row) {
     subIndices: wqiResult.subIndices,
     contributionPercentages: wqiResult.contributionPercentages,
     qualityRatings: wqiResult.qualityRatings,
-    compliance: wqiResult.compliance,
-    is_simulated: row.is_simulated === true || row.verified_hardware !== true,
-    verified_hardware: Boolean(row.verified_hardware === true)
+    // If row doesn't have is_simulated column or it is false/null, it is authentic hardware LoRa
+    is_simulated: row.is_simulated === true,
+    verified_hardware: row.is_simulated !== true
   };
 }
 

@@ -301,13 +301,20 @@ bool postToServer(String jsonPayload, int rssi, float snr, long freqError, int r
   client.setInsecure(); // Allows secure HTTPS forwarding to cloud without uploading certificate bundles
   client.setTimeout(15); // seconds - TLS handshake to Vercel can be slow on weak hotspots
 
-  // Diagnostics: confirm the gateway can actually resolve the server (internet + DNS)
+  // Ensure reliable DNS on mobile hotspots by setting public DNS servers
+  IPAddress dns1(8, 8, 8, 8);
+  IPAddress dns2(1, 1, 1, 1);
+  WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, dns1, dns2);
+
   IPAddress serverIp;
-  if (!WiFi.hostByName("agosense.vercel.app", serverIp)) {
-    Serial.println("DNS lookup FAILED for agosense.vercel.app -> the WiFi has no internet access (or blocks DNS).");
-  } else {
-    Serial.println("DNS OK: agosense.vercel.app -> " + serverIp.toString() + " | WiFi RSSI: " + String(WiFi.RSSI()) + " dBm");
+  bool dnsResolved = WiFi.hostByName("agosense.vercel.app", serverIp);
+  if (!dnsResolved || serverIp == IPAddress(0, 0, 0, 0)) {
+    Serial.println("DNS lookup returned invalid IP (" + serverIp.toString() + "). Retrying DNS...");
+    delay(500);
+    WiFi.hostByName("agosense.vercel.app", serverIp);
   }
+
+  Serial.println("DNS: agosense.vercel.app -> " + serverIp.toString() + " | WiFi RSSI: " + String(WiFi.RSSI()) + " dBm");
 
   HTTPClient http;
   http.setTimeout(15000);
