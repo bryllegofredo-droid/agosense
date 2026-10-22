@@ -58,6 +58,11 @@ function saveLocalRecords(records) {
   }
 }
 
+function clampCol(val, max = 999.99, min = 0) {
+  if (val === null || val === undefined || isNaN(val)) return 0;
+  return Number(Math.max(min, Math.min(max, Number(val))).toFixed(2));
+}
+
 /**
  * Inserts telemetry reading into Supabase (and mirrors locally)
  */
@@ -66,28 +71,35 @@ async function insertTelemetry(packet) {
   const temp = Number(packet.temp || 25.0);
   const turbidity = Number(packet.turb_ntu !== undefined ? packet.turb_ntu : (packet.turbidity || 0));
   const tds = Number(packet.tds || 0);
+  const nodeNum = Number(packet.node !== undefined ? packet.node : (packet.node_id || 1));
 
   // Compute WAWQI metrics mathematically
   const wqiResult = evaluateWAWQI({ ph, temp, turbidity, tds });
 
-  // Determine Site / Location: dynamically resolved from map pins set in web app
+  // Determine Site / Location: must match stations(station_id) foreign key in Supabase
+  const validStations = ["UPSTREAM", "MIDSTREAM", "DOWNSTREAM"];
+  const defaultStationByNode = { 1: "UPSTREAM", 2: "MIDSTREAM", 3: "DOWNSTREAM" };
+
   let siteName = packet.site ? packet.site.toUpperCase() : null;
-  if (!siteName) {
+  if (!siteName || !validStations.includes(siteName)) {
     const activePins = await getPins();
     if (activePins && activePins.length > 0) {
-      // Pick the latest pin or match by node_id if tagged
-      const matchingPin = activePins.find(p => p.node_id === packet.node_id) || activePins[activePins.length - 1];
-      siteName = matchingPin.site || matchingPin.label || "RIVER_STATION";
-    } else {
-      siteName = "DIGOS_RIVER_NODE";
+      const matchingPin = activePins.find(p => p.node_id === nodeNum || (p.site && p.site.toUpperCase() === defaultStationByNode[nodeNum])) || activePins[activePins.length - 1];
+      if (matchingPin && matchingPin.site && validStations.includes(matchingPin.site.toUpperCase())) {
+        siteName = matchingPin.site.toUpperCase();
+      }
     }
+  }
+
+  if (!siteName || !validStations.includes(siteName)) {
+    siteName = defaultStationByNode[nodeNum] || "UPSTREAM";
   }
 
   const record = {
     id: `rec_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
     timestamp: packet.timestamp || new Date().toISOString(),
     site: siteName.toUpperCase(),
-    node_id: packet.node_id || 1,
+    node_id: nodeNum,
     seq: packet.seq || 1,
     temp,
     ph,
@@ -128,25 +140,25 @@ async function insertTelemetry(packet) {
         timestamp: record.timestamp,
         station_id: record.site,
         packet_seq: record.seq,
-        ph_value: record.ph,
-        temp_celsius: record.temp,
-        turbidity_voltage: record.turb_v,
-        turbidity_ntu: record.turbidity,
-        tds_ppm: record.tds,
-        wawqi_score: record.wawqi,
-        classification: record.classification,
-        dominant_parameter: record.dominantParameter,
-        dominant_contribution_pct: record.dominantContributionPct,
-        subindex_ph: record.subIndices.pH,
-        subindex_temp: record.subIndices.temperature,
-        subindex_turbidity: record.subIndices.turbidity,
-        subindex_tds: record.subIndices.tds,
-        quality_ph: record.qualityRatings.pH,
-        quality_temp: record.qualityRatings.temperature,
-        quality_turbidity: record.qualityRatings.turbidity,
-        quality_tds: record.qualityRatings.tds,
-        rssi_dbm: record.rssi,
-        snr_db: record.snr
+        ph_value: clampCol(record.ph, 99.99, 0),
+        temp_celsius: clampCol(record.temp, 99.99, -50),
+        turbidity_voltage: clampCol(record.turb_v, 99.999, 0),
+        turbidity_ntu: clampCol(record.turbidity, 9999.99, 0),
+        tds_ppm: clampCol(record.tds, 9999.99, 0),
+        wawqi_score: clampCol(record.wawqi, 999.99, 0),
+        classification: String(record.classification || 'Unknown').slice(0, 30),
+        dominant_parameter: String(record.dominantParameter || 'pH').slice(0, 30),
+        dominant_contribution_pct: clampCol(record.dominantContributionPct, 100.0, 0),
+        subindex_ph: clampCol(record.subIndices?.pH, 999.99, 0),
+        subindex_temp: clampCol(record.subIndices?.temperature, 999.99, 0),
+        subindex_turbidity: clampCol(record.subIndices?.turbidity, 999.99, 0),
+        subindex_tds: clampCol(record.subIndices?.tds, 999.99, 0),
+        quality_ph: clampCol(record.qualityRatings?.pH, 999.99, 0),
+        quality_temp: clampCol(record.qualityRatings?.temperature, 999.99, 0),
+        quality_turbidity: clampCol(record.qualityRatings?.turbidity, 999.99, 0),
+        quality_tds: clampCol(record.qualityRatings?.tds, 999.99, 0),
+        rssi_dbm: record.rssi !== null ? Math.round(record.rssi) : null,
+        snr_db: record.snr !== null ? clampCol(record.snr, 99.9, -99.9) : null
       }]);
 
       if (error) {
