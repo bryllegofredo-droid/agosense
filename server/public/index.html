@@ -18,7 +18,7 @@
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="style.css?v=5.2-river">
+  <link rel="stylesheet" href="style.css?v=5.3-river">
   <link rel="stylesheet" href="river.css?v=1.2">
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.0.1/dist/maplibre-gl.css">
   <script src="https://unpkg.com/maplibre-gl@5.0.1/dist/maplibre-gl.js"></script>
@@ -57,9 +57,9 @@
       </div>
 
       <div class="nav-right">
-        <div class="gateway-status" id="gatewayStatusBadge">
-          <span class="status-dot"></span>
-          <span class="status-text">LoRa Gateway Active</span>
+        <div class="gateway-status offline" id="gatewayStatusBadge">
+          <span class="status-dot" id="gatewayStatusDot"></span>
+          <span class="status-text" id="gatewayStatusText">Checking Gateway...</span>
         </div>
         <button class="pill-btn pill-btn-ghost" id="btnSimulate">Simulate Ingest</button>
         <button class="pill-btn pill-btn-danger" id="btnClearSimulated"
@@ -379,7 +379,7 @@
   </div>
 
   <script src="river-map.js?v=1.2"></script>
-  <script src="app.js?v=5.5"></script>
+  <script src="app.js?v=5.6"></script>
 </body>
 
 </html>

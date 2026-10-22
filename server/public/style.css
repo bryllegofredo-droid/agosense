@@ -189,6 +189,7 @@ body {
   background: rgba(14, 165, 233, 0.1);
   border: 1px solid rgba(14, 165, 233, 0.35);
   border-radius: var(--radius-pill);
+  transition: all 0.3s ease;
 }
 
 .status-dot {
@@ -198,12 +199,7 @@ body {
   background: var(--blue-bright);
   box-shadow: 0 0 8px var(--blue-bright);
   animation: pulseBeacon 2.5s infinite;
-}
-
-@keyframes pulseBeacon {
-  0% { transform: scale(1); opacity: 0.7; }
-  50% { transform: scale(1.4); opacity: 1; }
-  100% { transform: scale(1); opacity: 0.7; }
+  transition: all 0.3s ease;
 }
 
 .status-text {
@@ -211,6 +207,45 @@ body {
   font-weight: 600;
   color: var(--blue);
   letter-spacing: 0.02em;
+  transition: color 0.3s ease;
+}
+
+/* Gateway Live / Active State */
+.gateway-status.online {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.gateway-status.online .status-dot {
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulseBeacon 1.8s infinite;
+}
+
+.gateway-status.online .status-text {
+  color: #10b981;
+}
+
+/* Gateway Offline / Standby State */
+.gateway-status.offline {
+  background: rgba(100, 116, 139, 0.1);
+  border-color: rgba(100, 116, 139, 0.3);
+}
+
+.gateway-status.offline .status-dot {
+  background: #94a3b8;
+  box-shadow: none;
+  animation: none;
+}
+
+.gateway-status.offline .status-text {
+  color: #64748b;
+}
+
+@keyframes pulseBeacon {
+  0% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.4); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.7; }
 }
 
 /* Clean Pill Buttons */

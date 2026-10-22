@@ -24,6 +24,9 @@ const elements = {
   feedPageSize: document.getElementById('feedPageSize'),
   btnFilterWawqi: document.getElementById('btnFilterWawqi'),
   btnFilterParams: document.getElementById('btnFilterParams'),
+  gatewayStatusBadge: document.getElementById('gatewayStatusBadge'),
+  gatewayStatusDot: document.getElementById('gatewayStatusDot'),
+  gatewayStatusText: document.getElementById('gatewayStatusText'),
   lastUpdatedLabel: document.getElementById('lastUpdatedLabel'),
   statTotalReadings: document.getElementById('statTotalReadings'),
   statComplianceRate: document.getElementById('statComplianceRate'),
@@ -237,6 +240,7 @@ async function fetchDashboardData() {
 // 3. UI RENDERING
 // ==========================================
 function renderDashboard() {
+  renderGatewayStatus();
   renderHardwareTelemetry();
   renderSummaryStats();
   renderHeroCard();
@@ -244,6 +248,44 @@ function renderDashboard() {
   renderFeedTable();
   updateTrendChart();
   updateBreakdownChart();
+}
+
+function renderGatewayStatus() {
+  if (!elements.gatewayStatusBadge || !elements.gatewayStatusText) return;
+
+  // Evaluate the freshest packet in state
+  const latest = state.historyData[0] || null;
+
+  if (!latest || !latest.timestamp) {
+    elements.gatewayStatusBadge.className = 'gateway-status offline';
+    elements.gatewayStatusText.textContent = 'Gateway Offline (Standby)';
+    return;
+  }
+
+  const packetTime = new Date(latest.timestamp).getTime();
+  const now = Date.now();
+  const diffSec = Math.floor((now - packetTime) / 1000);
+
+  // Gateway is considered actively transmitting if a packet was ingested within the last 60 seconds
+  if (diffSec >= 0 && diffSec <= 60) {
+    elements.gatewayStatusBadge.className = 'gateway-status online';
+    elements.gatewayStatusText.textContent = `LoRa Gateway Active (${diffSec}s ago)`;
+  } else {
+    elements.gatewayStatusBadge.className = 'gateway-status offline';
+    let timeAgo = '';
+    if (diffSec < 0) {
+      timeAgo = 'just now';
+    } else if (diffSec < 60) {
+      timeAgo = `${diffSec}s ago`;
+    } else if (diffSec < 3600) {
+      timeAgo = `${Math.floor(diffSec / 60)}m ago`;
+    } else if (diffSec < 86400) {
+      timeAgo = `${Math.floor(diffSec / 3600)}h ago`;
+    } else {
+      timeAgo = `${Math.floor(diffSec / 86400)}d ago`;
+    }
+    elements.gatewayStatusText.textContent = `Gateway Offline (Last: ${timeAgo})`;
+  }
 }
 
 function getActiveRecord() {
