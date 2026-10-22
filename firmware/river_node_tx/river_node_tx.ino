@@ -237,11 +237,10 @@ void loop() {
     if (phVal < 0) phVal = 0;
     if (phVal > 14) phVal = 14.0;
 
-    // 5. Read Battery Voltage
-    // Heltec V2 divider: 100k / 220k on GPIO 37
-    int battRaw = analogRead(VBAT_PIN);
-    float battVoltage = (battRaw / ADC_MAX) * VREF * 3.20; // calibrated divider multiplier
-    if (battVoltage < 2.5 || battVoltage > 5.0) battVoltage = 3.85; // sane fallback
+    // 5. Battery / Power Monitoring
+    // Node is powered by a 7.4V (2S) battery running through a 5V buck converter into USB.
+    // Transmits 5.00V (regulated buck rail) until a dedicated 2S resistor divider (100k:33k on GPIO 34) is connected.
+    float battVoltage = 5.00;
 
     // 6. Build LoRa JSON Telemetry with Network Markers (Site/Location dynamically tagged by Map Pin)
     String payload = "{";

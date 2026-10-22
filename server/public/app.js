@@ -218,13 +218,22 @@ function renderHardwareTelemetry() {
     return;
   }
 
-  const batt = latest.batt_v !== undefined ? latest.batt_v : 3.85;
+  const batt = latest.batt_v !== undefined ? Number(latest.batt_v) : 5.0;
   if (elements.nodeBatteryVal) {
     elements.nodeBatteryVal.textContent = `${batt.toFixed(2)}V`;
   }
   if (elements.nodeBatteryPct) {
-    const pct = Math.min(100, Math.max(5, Math.round(((batt - 3.3) / (4.2 - 3.3)) * 100)));
-    elements.nodeBatteryPct.textContent = `(${pct}% LiPo)`;
+    if (batt >= 4.7 && batt <= 5.5) {
+      elements.nodeBatteryPct.textContent = `(5V Buck Regulated)`;
+    } else if (batt >= 6.0) {
+      // 2S battery pack (6.0V empty - 8.4V full)
+      const pct2s = Math.min(100, Math.max(0, Math.round(((batt - 6.0) / (8.4 - 6.0)) * 100)));
+      elements.nodeBatteryPct.textContent = `(${pct2s}% 2S Pack)`;
+    } else {
+      // Standard 1S LiPo (3.3V empty - 4.2V full)
+      const pct = Math.min(100, Math.max(0, Math.round(((batt - 3.3) / (4.2 - 3.3)) * 100)));
+      elements.nodeBatteryPct.textContent = `(${pct}% LiPo)`;
+    }
   }
 
   if (elements.nodeRssiVal) {
@@ -403,6 +412,13 @@ function renderFeedTable() {
   filtered.slice(0, 15).forEach(r => {
     const tr = document.createElement('tr');
     const timeStr = new Date(r.timestamp).toLocaleTimeString();
+    const battVal = r.batt_v !== undefined ? Number(r.batt_v) : 5.0;
+    const battStr = battVal >= 4.7 && battVal <= 5.5
+      ? `${battVal.toFixed(2)}V (Buck)`
+      : battVal >= 6.0
+        ? `${battVal.toFixed(2)}V (2S)`
+        : `${battVal.toFixed(2)}V`;
+
     // Explicitly identify real LoRa hardware packets by RF telemetry (RSSI) or verified hardware flag
     const isRealLoRa = (!r.is_simulated || r.is_simulated === false) || (r.rssi !== null && r.rssi !== undefined);
     const sourceBadge = isRealLoRa
