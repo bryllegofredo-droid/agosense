@@ -507,6 +507,13 @@ function renderFeedTable() {
 // ==========================================
 // 4. CHART.JS CONFIGURATION
 // ==========================================
+let lastRenderedState = {
+  firstPacketId: null,
+  packetCount: 0,
+  metric: null,
+  filter: null
+};
+
 function initCharts() {
   // Trend Chart
   const trendCtx = document.getElementById('trendChart').getContext('2d');
@@ -516,6 +523,7 @@ function initCharts() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      animation: false, // Prevents constant morph/bounce animations on polling
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: {
@@ -535,10 +543,13 @@ function initCharts() {
       },
       scales: {
         x: {
-          ticks: { color: '#6584a8', font: { family: 'JetBrains Mono', size: 9 } },
+          ticks: { color: '#6584a8', font: { family: 'JetBrains Mono', size: 9 }, maxRotation: 0 },
           grid: { color: 'rgba(14, 90, 170, 0.08)' }
         },
         y: {
+          beginAtZero: true,
+          suggestedMin: 0,
+          suggestedMax: 100, // Anchor WAWQI to standard 0-100 scale to prevent micro-fluctuation jumping
           ticks: { color: '#6584a8', font: { family: 'JetBrains Mono', size: 9 } },
           grid: { color: 'rgba(14, 90, 170, 0.08)' }
         }
@@ -562,6 +573,7 @@ function initCharts() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      animation: false,
       cutout: '76%',
       plugins: { legend: { display: false } }
     }
@@ -577,11 +589,33 @@ function updateTrendChart() {
   } else if (state.feedFilter === 'simulated') {
     filtered = filtered.filter(r => Boolean(r.is_simulated));
   }
+
+  const latestId = filtered[0] ? filtered[0].id : null;
+  const count = filtered.length;
+
+  // Skip redraw if dataset, active metric, and filter have not changed
+  if (
+    lastRenderedState.firstPacketId === latestId &&
+    lastRenderedState.packetCount === count &&
+    lastRenderedState.metric === state.activeMetric &&
+    lastRenderedState.filter === state.feedFilter
+  ) {
+    return;
+  }
+
+  lastRenderedState.firstPacketId = latestId;
+  lastRenderedState.packetCount = count;
+  lastRenderedState.metric = state.activeMetric;
+  lastRenderedState.filter = state.feedFilter;
+
   filtered = filtered.slice(0, 20).reverse();
 
   const labels = filtered.map(r => new Date(r.timestamp).toLocaleTimeString());
 
   if (state.activeMetric === "wawqi") {
+    trendChartInstance.options.scales.y.beginAtZero = true;
+    trendChartInstance.options.scales.y.suggestedMin = 0;
+    trendChartInstance.options.scales.y.suggestedMax = 100;
     trendChartInstance.data = {
       labels,
       datasets: [{
@@ -591,11 +625,14 @@ function updateTrendChart() {
         backgroundColor: 'rgba(14, 165, 233, 0.15)',
         fill: true,
         tension: 0.35,
-        pointRadius: 2,
-        pointHoverRadius: 5
+        pointRadius: 3,
+        pointHoverRadius: 6
       }]
     };
   } else {
+    trendChartInstance.options.scales.y.beginAtZero = true;
+    trendChartInstance.options.scales.y.suggestedMin = 0;
+    trendChartInstance.options.scales.y.suggestedMax = 50;
     trendChartInstance.data = {
       labels,
       datasets: [
@@ -604,33 +641,33 @@ function updateTrendChart() {
           data: filtered.map(r => r.ph),
           borderColor: '#10b981',
           tension: 0.3,
-          pointRadius: 2
+          pointRadius: 3
         },
         {
           label: 'Temperature (°C)',
           data: filtered.map(r => r.temp),
           borderColor: '#ef4444',
           tension: 0.3,
-          pointRadius: 2
+          pointRadius: 3
         },
         {
           label: 'Turbidity (NTU)',
           data: filtered.map(r => r.turbidity),
           borderColor: '#f59e0b',
           tension: 0.3,
-          pointRadius: 2
+          pointRadius: 3
         },
         {
           label: 'TDS (ppm / 10)',
           data: filtered.map(r => (r.tds / 10).toFixed(1)),
           borderColor: '#06b6d4',
           tension: 0.3,
-          pointRadius: 2
+          pointRadius: 3
         }
       ]
     };
   }
-  trendChartInstance.update();
+  trendChartInstance.update('none');
 }
 
 function updateBreakdownChart() {
@@ -639,7 +676,7 @@ function updateBreakdownChart() {
   
   if (!record || !record.contributionPercentages) {
     breakdownChartInstance.data.datasets[0].data = [0, 0, 0, 0];
-    breakdownChartInstance.update();
+    breakdownChartInstance.update('none');
     elements.breakdownLegend.innerHTML = `
       <div style="padding: 2rem 1rem; text-align: center; color: var(--text-muted); font-size: 0.82rem; line-height: 1.5;">
         Awaiting telemetry transmission to compute mathematical parameter weights ($Q_i \\times W_i$).
@@ -651,7 +688,7 @@ function updateBreakdownChart() {
   const pcts = record.contributionPercentages;
   const data = [pcts.turbidity, pcts.pH, pcts.temperature, pcts.tds];
   breakdownChartInstance.data.datasets[0].data = data;
-  breakdownChartInstance.update();
+  breakdownChartInstance.update('none');
 
   // Minimal text-based breakdown list (No icons)
   elements.breakdownLegend.innerHTML = `
