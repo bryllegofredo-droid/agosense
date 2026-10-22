@@ -25,6 +25,7 @@
 #include <WebServer.h>
 #include <DNSServer.h>
 #include <Preferences.h>
+#include <lwip/dns.h>
 
 // ==========================================
 // 1. NETWORK & SERVER CONFIGURATION
@@ -250,6 +251,14 @@ bool tryConnectWiFi() {
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("\nWiFi connected! IP address: ");
     Serial.println(WiFi.localIP());
+
+    // Configure resilient public DNS (Google 8.8.8.8 and Cloudflare 1.1.1.1) in lwIP
+    ip_addr_t dns1, dns2;
+    IP_ADDR4(&dns1, 8, 8, 8, 8);
+    IP_ADDR4(&dns2, 1, 1, 1, 1);
+    dns_setserver(0, &dns1);
+    dns_setserver(1, &dns2);
+
     return true;
   }
   Serial.println("\nWiFi connection failed.");
@@ -299,16 +308,10 @@ bool postToServer(String jsonPayload, int rssi, float snr, long freqError, int r
 
   WiFiClientSecure client;
   client.setInsecure(); // Allows secure HTTPS forwarding to cloud without uploading certificate bundles
-  client.setTimeout(15); // seconds - TLS handshake to Vercel can be slow on weak hotspots
+  client.setTimeout(20); // seconds - TLS handshake can take longer on weak hotspots
+  client.setHandshakeTimeout(20);
 
-  IPAddress serverIp;
-  bool dnsResolved = WiFi.hostByName("agosense.vercel.app", serverIp);
-  if (!dnsResolved || serverIp == IPAddress(0, 0, 0, 0)) {
-    Serial.println("DNS lookup failed or returned 0.0.0.0; using Vercel Anycast IP fallback (76.76.21.21)");
-    serverIp = IPAddress(76, 76, 21, 21);
-  }
-
-  Serial.println("Target: " + serverIp.toString() + ":443 (agosense.vercel.app) | WiFi RSSI: " + String(WiFi.RSSI()) + " dBm");
+  Serial.println("Target: agosense.vercel.app:443 | WiFi RSSI: " + String(WiFi.RSSI()) + " dBm");
 
   // Inject comprehensive RF connectivity diagnostics into JSON payload
   String enrichedPayload = jsonPayload;
@@ -324,26 +327,24 @@ bool postToServer(String jsonPayload, int rssi, float snr, long freqError, int r
     enrichedPayload += "}";
   }
 
-  Serial.println("[HTTP POST] Sending payload to https://agosense.vercel.app/api/telemetry");
+  Serial.println("[HTTP POST] Sending payload to " + String(SERVER_URL));
   Serial.println("Payload: " + enrichedPayload);
 
   HTTPClient http;
-  http.setTimeout(15000);
-  // Connect directly by IP to bypass DNS issues, specifying HTTPS port 443 with Host header
-  http.begin(client, serverIp.toString(), 443, "/api/telemetry", true);
-  http.addHeader("Host", "agosense.vercel.app");
+  http.setTimeout(20000);
+  // Using SERVER_URL ("https://agosense.vercel.app/api/telemetry") preserves SNI for Vercel SSL
+  http.begin(client, SERVER_URL);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("X-Gateway-Auth", GATEWAY_KEY);
   http.addHeader("X-Gateway-ID", "Heltec-GW-01");
 
   int httpResponseCode = http.POST(enrichedPayload);
   if (httpResponseCode <= 0) {
-    // One retry: the first TLS connection after a quiet period often fails
-    Serial.println("First attempt failed (" + http.errorToString(httpResponseCode) + "), retrying...");
+    // One retry: the first TLS connection after a quiet period often fails on weak hotspots
+    Serial.println("First attempt failed (" + http.errorToString(httpResponseCode) + "), retrying in 1s...");
     http.end();
-    delay(500);
-    http.begin(client, serverIp.toString(), 443, "/api/telemetry", true);
-    http.addHeader("Host", "agosense.vercel.app");
+    delay(1000);
+    http.begin(client, SERVER_URL);
     http.addHeader("Content-Type", "application/json");
     http.addHeader("X-Gateway-Auth", GATEWAY_KEY);
     http.addHeader("X-Gateway-ID", "Heltec-GW-01");
