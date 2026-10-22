@@ -507,12 +507,46 @@ async function deletePin(id) {
   return { deleted: true };
 }
 
+/**
+ * Deletes a single telemetry record permanently by ID from Supabase and local storage
+ */
+async function deleteTelemetryRecord(recordId) {
+  const numericId = typeof recordId === 'string' && recordId.startsWith('db_')
+    ? parseInt(recordId.replace('db_', ''), 10)
+    : parseInt(recordId, 10);
+
+  let success = false;
+
+  if (supabase && !isNaN(numericId)) {
+    try {
+      const { error } = await supabase.from('telemetry_logs').delete().eq('id', numericId);
+      if (!error) {
+        success = true;
+      } else {
+        console.warn('⚠️ Supabase record delete warning:', error.message);
+      }
+    } catch (err) {
+      console.warn('Supabase delete error:', err.message);
+    }
+  }
+
+  const local = loadLocalRecords();
+  const filtered = local.filter(r => r.id !== recordId && r.id !== `db_${numericId}` && r.id !== numericId);
+  if (filtered.length !== local.length) {
+    saveLocalRecords(filtered);
+    success = true;
+  }
+
+  return { success, id: recordId };
+}
+
 module.exports = {
   insertTelemetry,
   getLatestBySite,
   getHistory,
   getStatistics,
   clearSimulatedRecords,
+  deleteTelemetryRecord,
   exportCSV,
   getPins,
   addPin,

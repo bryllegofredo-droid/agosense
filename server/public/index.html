@@ -18,7 +18,7 @@
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="style.css?v=5.1-river">
+  <link rel="stylesheet" href="style.css?v=5.2-river">
   <link rel="stylesheet" href="river.css?v=1.2">
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.0.1/dist/maplibre-gl.css">
   <script src="https://unpkg.com/maplibre-gl@5.0.1/dist/maplibre-gl.js"></script>
@@ -323,7 +323,19 @@
                 <button class="feed-filter-btn" data-filter="real">Real LoRa Only</button>
                 <button class="feed-filter-btn" data-filter="simulated">Simulated Only</button>
               </div>
-              <span class="stream-counter" id="feedCounter">0 packets logged</span>
+              <div class="feed-controls-right">
+                <div class="page-size-group">
+                  <label for="feedPageSize" class="page-size-label">View:</label>
+                  <select id="feedPageSize" class="page-size-select" title="Number of packets to display">
+                    <option value="15">15</option>
+                    <option value="25">25</option>
+                    <option value="50" selected>50</option>
+                    <option value="100">100</option>
+                    <option value="all">All</option>
+                  </select>
+                </div>
+                <span class="stream-counter" id="feedCounter">0 packets logged</span>
+              </div>
             </div>
           </div>
 
@@ -342,6 +354,7 @@
                   <th>RATING</th>
                   <th>BATTERY</th>
                   <th>RSSI / SNR</th>
+                  <th style="text-align: center;">ACTION</th>
                 </tr>
               </thead>
               <tbody id="telemetryFeedBody">
@@ -366,7 +379,7 @@
   </div>
 
   <script src="river-map.js?v=1.2"></script>
-  <script src="app.js?v=5.3"></script>
+  <script src="app.js?v=5.4"></script>
 </body>
 
 </html>

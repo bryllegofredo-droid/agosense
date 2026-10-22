@@ -9,6 +9,7 @@
 const state = {
   activeMetric: "wawqi",
   feedFilter: "all",
+  pageSize: "50",
   historyData: [],
   stats: {},
   pollInterval: null
@@ -20,6 +21,7 @@ const elements = {
   btnClearSimulated: document.getElementById('btnClearSimulated'),
   btnExportCSV: document.getElementById('btnExportCSV'),
   feedFilterBtns: document.querySelectorAll('.feed-filter-btn'),
+  feedPageSize: document.getElementById('feedPageSize'),
   btnFilterWawqi: document.getElementById('btnFilterWawqi'),
   btnFilterParams: document.getElementById('btnFilterParams'),
   lastUpdatedLabel: document.getElementById('lastUpdatedLabel'),
@@ -168,6 +170,48 @@ function bindEvents() {
   elements.btnExportCSV.addEventListener('click', () => {
     window.location.href = `/api/export/csv?filter=${state.feedFilter}`;
   });
+
+  // Feed Page Size Selector
+  if (elements.feedPageSize) {
+    elements.feedPageSize.addEventListener('change', (e) => {
+      state.pageSize = e.target.value;
+      renderFeedTable();
+    });
+  }
+
+  // Permanent Delete Single Packet Event Delegation
+  if (elements.telemetryFeedBody) {
+    elements.telemetryFeedBody.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.btn-delete-packet');
+      if (!btn) return;
+      const id = btn.getAttribute('data-id');
+      const seq = btn.getAttribute('data-seq');
+      if (!id) return;
+
+      const confirmed = confirm(`Permanently delete packet #${seq} (ID: ${id}) from the database?\n\nThis will remove it from Supabase and local storage.`);
+      if (!confirmed) return;
+
+      btn.disabled = true;
+      btn.style.opacity = '0.3';
+
+      try {
+        const res = await fetch(`/api/telemetry/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        if (res.ok) {
+          state.historyData = state.historyData.filter(item => item.id !== id);
+          renderDashboard();
+        } else {
+          const err = await res.json();
+          alert(`Failed to delete packet: ${err.error || 'Server error'}`);
+          btn.disabled = false;
+          btn.style.opacity = '1';
+        }
+      } catch (err) {
+        alert(`Network error: ${err.message}`);
+        btn.disabled = false;
+        btn.style.opacity = '1';
+      }
+    });
+  }
 }
 
 // ==========================================
@@ -176,7 +220,7 @@ function bindEvents() {
 async function fetchDashboardData() {
   try {
     const [historyRes, statsRes] = await Promise.all([
-      fetch('/api/history?limit=50'),
+      fetch('/api/history?limit=250'),
       fetch('/api/stats')
     ]);
 
@@ -389,7 +433,15 @@ function renderFeedTable() {
     filtered = filtered.filter(r => Boolean(r.is_simulated));
   }
 
-  elements.feedCounter.textContent = `${filtered.length} packets logged`;
+  const displayLimit = state.pageSize === 'all'
+    ? filtered.length
+    : (parseInt(state.pageSize, 10) || 50);
+
+  const displayCount = Math.min(displayLimit, filtered.length);
+  elements.feedCounter.textContent = displayLimit < filtered.length
+    ? `Showing ${displayCount} of ${filtered.length} packets`
+    : `${filtered.length} packets logged`;
+
   elements.telemetryFeedBody.innerHTML = "";
 
   if (filtered.length === 0) {
@@ -401,7 +453,7 @@ function renderFeedTable() {
 
     elements.telemetryFeedBody.innerHTML = `
       <tr>
-        <td colspan="11" style="text-align: center; color: var(--text-muted); padding: 2.5rem 1rem; font-size: 0.85rem;">
+        <td colspan="12" style="text-align: center; color: var(--text-muted); padding: 2.5rem 1rem; font-size: 0.85rem;">
           ${emptyMsg}
         </td>
       </tr>
@@ -409,7 +461,7 @@ function renderFeedTable() {
     return;
   }
 
-  filtered.slice(0, 15).forEach(r => {
+  filtered.slice(0, displayLimit).forEach(r => {
     const tr = document.createElement('tr');
     const timeStr = new Date(r.timestamp).toLocaleTimeString();
     const battVal = r.batt_v !== undefined ? Number(r.batt_v) : 5.0;
@@ -437,6 +489,16 @@ function renderFeedTable() {
       <td><span style="color:${r.classColor}; font-weight:700;">${r.classification}</span></td>
       <td><span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--emerald);">${battStr}</span></td>
       <td style="font-family:var(--font-mono); font-size:0.75rem;">${r.rssi ? r.rssi + ' dBm / ' + r.snr + ' dB' : 'SIMULATED'}</td>
+      <td style="text-align: center;">
+        <button class="btn-delete-packet" data-id="${r.id}" data-seq="${r.seq}" title="Permanently delete packet #${r.seq}">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            <line x1="10" y1="11" x2="10" y2="17"></line>
+            <line x1="14" y1="11" x2="14" y2="17"></line>
+          </svg>
+        </button>
+      </td>
     `;
     elements.telemetryFeedBody.appendChild(tr);
   });

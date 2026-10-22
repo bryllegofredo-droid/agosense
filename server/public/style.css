@@ -998,8 +998,67 @@ body {
 }
 
 .feed-scroll-wrapper {
-  max-height: 300px;
+  max-height: 480px;
   overflow-y: auto;
+}
+
+.feed-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.page-size-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.page-size-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.page-size-select {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-pure);
+  font-family: var(--font-mono);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.page-size-select:focus,
+.page-size-select:hover {
+  border-color: var(--brand-sky);
+}
+
+.btn-delete-packet {
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.btn-delete-packet:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: #ef4444;
+  transform: scale(1.08);
 }
 
 .minimal-table {

@@ -8,7 +8,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { insertTelemetry, getLatestBySite, getHistory, getStatistics, clearSimulatedRecords, exportCSV, getPins, addPin, deletePin } = require('./db');
+const { insertTelemetry, getLatestBySite, getHistory, getStatistics, clearSimulatedRecords, deleteTelemetryRecord, exportCSV, getPins, addPin, deletePin } = require('./db');
 const { getStandards, setStandards, evaluateWAWQI } = require('./wawqi');
 
 const app = express();
@@ -207,6 +207,24 @@ app.post('/api/clear-simulated', async (req, res) => {
       status: "success",
       deletedCount: result.deletedCount,
       message: `Successfully cleared ${result.deletedCount} simulated test record(s).`
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * 8b. Permanently Delete a Single Telemetry Record
+ * DELETE /api/telemetry/:id
+ */
+app.delete('/api/telemetry/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const result = await deleteTelemetryRecord(id);
+    res.json({
+      status: "success",
+      deletedId: id,
+      message: `Record ${id} permanently deleted.`
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
